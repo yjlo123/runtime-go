@@ -1,0 +1,12 @@
+clr
+let base 9
+let x $base
+#draw_dot
+slp 200
+drw $x 11 1
+add x $x 2
+sub y $x $base
+div y $y 2
+prt $y
+jne $x 15 draw_dot
+prt 'Hello World!'

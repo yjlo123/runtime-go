@@ -1,0 +1,9 @@
+prt 'Num 1:'
+inp num1
+int num1 $num1
+prt 'Num 2:'
+inp num2
+int num2 $num2
+prt '-----------'
+add res $num1 $num2
+prt $res
