@@ -5,7 +5,9 @@ import (
 	"strconv"
 )
 
+// Value Types ..
 const (
+	ValueTypeNil  = "nil"
 	ValueTypeInt  = "int"
 	ValueTypeStr  = "str"
 	ValueTypeList = "list"
@@ -35,8 +37,10 @@ func (val Value) GetValue() interface{} {
 		return val.Val
 	case ValueTypeList:
 		return val.ListPtr
-	default:
+	case ValueTypeNil:
 		return nil
+	default:
+		return fmt.Sprintf("Unknow value: %s", val)
 	}
 }
 
@@ -48,9 +52,16 @@ func (val Value) Equals(val2 *Value) bool {
 
 // NewValue ..
 func NewValue(val interface{}) *Value {
+	if val == nil {
+		return &Value{
+			Type: ValueTypeNil,
+		}
+	}
+
 	var dataType string
 	var dataVal string
 	var dataListPtr *List
+
 	switch val.(type) {
 	case int:
 		dataType = ValueTypeInt
@@ -87,7 +98,7 @@ type List struct {
 // Poll extrats an element from the left side of the list
 func (list *List) Poll() *Value {
 	if list.Head == nil {
-		return nil
+		return NewValue(nil)
 	}
 	data := list.Head.Data
 	if list.Head.Next == nil {
@@ -103,7 +114,7 @@ func (list *List) Poll() *Value {
 // Pop extrats an element from the right side of the list
 func (list *List) Pop() *Value {
 	if list.Tail == nil {
-		return nil
+		return NewValue(nil)
 	}
 	data := list.Tail.Data
 	if list.Tail.Prev == nil {
@@ -146,6 +157,7 @@ func (list List) String() string {
 	return str
 }
 
+// ConstructList ..
 func ConstructList(nums []interface{}) *List {
 	node := &ListNode{}
 	head := node

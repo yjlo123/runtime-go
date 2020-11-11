@@ -1,0 +1,19 @@
+let list []
+psh $list 8
+psh $list 'hello'
+psh $list 5
+psh $list 6
+pop $list a
+add a $a 10
+prt $a
+pol $list a
+prt $a
+pol $list a
+prt $a
+prt $list
+
+pol $list a
+prt $a
+prt $list
+pol $list a
+prt $a
