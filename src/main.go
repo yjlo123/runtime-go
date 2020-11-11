@@ -13,7 +13,7 @@ func checkErr(e error) {
 
 func main() {
 
-	dat, err := ioutil.ReadFile("./examples/list.runtime")
+	dat, err := ioutil.ReadFile("../examples/list.runtime")
 	checkErr(err)
 	src := string(dat)
 	// replace newline character for windows
