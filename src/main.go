@@ -5,18 +5,15 @@ import (
 	"strings"
 )
 
-func checkErr(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
 func main() {
 
-	dat, err := ioutil.ReadFile("../examples/list.runtime")
-	checkErr(err)
+	dat, err := ioutil.ReadFile("../examples/func.runtime")
+	if err != nil {
+		panic(err)
+	}
 	src := string(dat)
-	// replace newline character for windows
+
+	// replace newline characters for windows
 	src = strings.Replace(src, "\r\n", "\n", -1)
 
 	program := Tokenize(src)
@@ -28,5 +25,5 @@ func main() {
 
 	env := Parse(program)
 	Evaluate(program, env)
-	//fmt.Println(env.Vars)
+	//fmt.Println(env.Funcs)
 }

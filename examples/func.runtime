@@ -1,0 +1,12 @@
+def func_a
+ prt '== A start'
+ cal func_b
+ prt '== A end'
+end
+
+def func_b
+ prt '** B start'
+ prt '** B end'
+end
+
+cal func_a

@@ -1,0 +1,24 @@
+let m {}
+get $m a av
+prt $av
+
+put $m 'abc' 123
+get $m abc mv
+prt $mv
+
+let l []
+psh $l 6
+put $m yjlo $l
+
+key $m keys
+
+prt $keys
+pop $keys k
+prt $k
+
+prt $m
+get $m $k ll
+prt $ll
+
+del $m abc
+prt $m

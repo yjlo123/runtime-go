@@ -52,17 +52,23 @@ func Tokenize(src string) [][]string {
 // Parse ..
 func Parse(program [][]string) *Env {
 	labels := make(map[string]int)
+	funcs := make(map[string]int)
 	for i, ts := range program {
 		if len(ts) < 1 {
 			continue
 		}
 		cmd := ts[0]
 		if cmd[0] == '#' {
-			labels[cmd[1:len(cmd)]] = i
+			labels[cmd[1:]] = i
+		}
+		if cmd == "def" {
+			funcs[ts[1]] = i
 		}
 	}
 	return &Env{
 		Labels: labels,
+		Funcs:  funcs,
 		Vars:   make(map[string]*Value),
+		stack:  []*Frame{},
 	}
 }

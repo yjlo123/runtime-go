@@ -11,6 +11,7 @@ const (
 	ValueTypeInt  = "int"
 	ValueTypeStr  = "str"
 	ValueTypeList = "list"
+	ValueTypeMap  = "map"
 )
 
 // Value ..
@@ -18,11 +19,14 @@ type Value struct {
 	Type    string
 	Val     string
 	ListPtr *List
+	MapPtr  *Map
 }
 
 func (val Value) String() string {
 	if val.Type == ValueTypeList {
 		return fmt.Sprintf("%s(%s)", *val.ListPtr, val.Type)
+	} else if val.Type == ValueTypeMap {
+		return fmt.Sprintf("%s(%s)", *val.MapPtr, val.Type)
 	}
 	return fmt.Sprintf("%s(%s)", val.Val, val.Type)
 }
@@ -37,6 +41,8 @@ func (val Value) GetValue() interface{} {
 		return val.Val
 	case ValueTypeList:
 		return val.ListPtr
+	case ValueTypeMap:
+		return val.MapPtr
 	case ValueTypeNil:
 		return nil
 	default:
@@ -61,6 +67,7 @@ func NewValue(val interface{}) *Value {
 	var dataType string
 	var dataVal string
 	var dataListPtr *List
+	var dataMapPtr *Map
 
 	switch val.(type) {
 	case int:
@@ -72,6 +79,9 @@ func NewValue(val interface{}) *Value {
 	case *List:
 		dataType = ValueTypeList
 		dataListPtr = val.(*List)
+	case *Map:
+		dataType = ValueTypeMap
+		dataMapPtr = val.(*Map)
 	default:
 		fmt.Printf("Unknown data type: %T\n", val)
 	}
@@ -79,6 +89,7 @@ func NewValue(val interface{}) *Value {
 		Type:    dataType,
 		Val:     dataVal,
 		ListPtr: dataListPtr,
+		MapPtr:  dataMapPtr,
 	}
 }
 
@@ -172,6 +183,49 @@ func ConstructList(nums []interface{}) *List {
 		node = node.Next
 	}
 	return &List{head, node}
+}
+
+// Map ..
+type Map struct {
+	Data map[string]*Value
+}
+
+func (m Map) String() string {
+	return fmt.Sprintf("%s", m.Data)
+}
+
+// Put adds new values to the map
+func (m *Map) Put(key string, val *Value) {
+	if m.Data == nil {
+		m.Data = make(map[string]*Value)
+	}
+	m.Data[key] = val
+}
+
+// Get returns the value by key
+func (m *Map) Get(key string) *Value {
+	val, ok := m.Data[key]
+	if ok {
+		return val
+	}
+	return NewValue(nil)
+}
+
+// Delete removes a key-value from the map
+func (m *Map) Delete(key string) {
+	_, ok := m.Data[key]
+	if ok {
+		delete(m.Data, key)
+	}
+}
+
+// GetKeys returns a list of all keys in the map
+func (m *Map) GetKeys() *List {
+	keys := List{}
+	for k := range m.Data {
+		keys.Push(NewValue(k))
+	}
+	return &keys
 }
 
 func testValues() {

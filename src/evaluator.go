@@ -12,7 +12,7 @@ func expression(env *Env, expr string) *Value {
 	}
 	if expr[0] == '$' {
 		// reference
-		return env.GetVarVal(expr[1:len(expr)])
+		return env.GetVarVal(expr[1:])
 	} else if num, err := strconv.Atoi(expr); err == nil {
 		// integer
 		return NewValue(num)
@@ -24,6 +24,8 @@ func expression(env *Env, expr string) *Value {
 		return NewValue(expr)
 	} else if expr[0] == '[' {
 		return NewValue(&List{})
+	} else if expr[0] == '{' {
+		return NewValue(&Map{})
 	}
 
 	// string ?
@@ -77,13 +79,30 @@ func Evaluate(program [][]string, env *Env) {
 				list := expression(env, ts[1]).GetValue().(*List)
 				list.Push(expression(env, ts[2]))
 			} else if cmd == "pop" {
-				list := expression(env, ts[1])
-				val := list.GetValue().(*List).Pop()
+				list := expression(env, ts[1]).GetValue().(*List)
+				val := list.Pop()
 				env.AssignVar(ts[2], val)
 			} else if cmd == "pol" {
-				list := expression(env, ts[1])
-				val := list.GetValue().(*List).Poll()
+				list := expression(env, ts[1]).GetValue().(*List)
+				val := list.Poll()
 				env.AssignVar(ts[2], val)
+			} else if cmd == "get" {
+				m := expression(env, ts[1]).GetValue().(*Map)
+				key := expression(env, ts[2]).GetValue().(string)
+				val := m.Get(key)
+				env.AssignVar(ts[3], val)
+			} else if cmd == "put" {
+				m := expression(env, ts[1]).GetValue().(*Map)
+				key := expression(env, ts[2]).GetValue().(string)
+				val := expression(env, ts[3])
+				m.Put(key, val)
+			} else if cmd == "del" {
+				m := expression(env, ts[1]).GetValue().(*Map)
+				key := expression(env, ts[2]).GetValue().(string)
+				m.Delete(key)
+			} else if cmd == "key" {
+				m := expression(env, ts[1]).GetValue().(*Map)
+				env.AssignVar(ts[2], NewValue(m.GetKeys()))
 			} else if cmd == "jne" {
 				val1 := expression(env, ts[1])
 				val2 := expression(env, ts[2])
@@ -91,6 +110,17 @@ func Evaluate(program [][]string, env *Env) {
 					// TODO check if label exists
 					pc = env.Labels[ts[3]]
 				}
+			} else if cmd == "def" {
+				for pc <= len(program) && program[pc][0] != "end" {
+					pc++
+				}
+			} else if cmd == "cal" {
+				funcName := ts[1]
+				env.PushFrame(NewFrame(funcName, pc, nil))
+				pc = env.Funcs[funcName]
+			} else if cmd == "end" {
+				frame := env.PopFrame()
+				pc = frame.Pc
 			}
 		}
 		pc++
