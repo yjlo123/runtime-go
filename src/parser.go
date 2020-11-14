@@ -26,6 +26,7 @@ func Tokenize(src string) [][]string {
 			i++
 			for {
 				if i == len(src) || src[i] == '\n' {
+					//fmt.Println(tokens, line)
 					panic("Unterminated string")
 				}
 				if src[i] == quote {
@@ -35,6 +36,14 @@ func Tokenize(src string) [][]string {
 				i++
 			}
 			token += string(src[i])
+		} else if c == '/' {
+			for {
+				if i == len(src) || src[i] == '\n' {
+					i-- // to trigger newline in the next iteration
+					break
+				}
+				i++
+			}
 		} else {
 			token += string(c)
 		}
@@ -46,6 +55,7 @@ func Tokenize(src string) [][]string {
 	if len(line) > 0 {
 		tokens = append(tokens, line)
 	}
+	//fmt.Println(tokens)
 	return tokens
 }
 

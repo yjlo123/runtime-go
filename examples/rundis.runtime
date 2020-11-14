@@ -1,0 +1,747 @@
+/ Rundis
+/ by Siwei
+/ Oct 2020
+
+let data {}
+
+let WRONGTYPE 'WRONGTYPE Operation against a key holding the wrong kind of value'
+
+def set
+ let _content {}
+ put $_content 'type' 'string'
+ put $_content 'expire' 0
+ put $_content 'value' $1
+ put $data $0 $_content
+end
+
+def get
+ let _key $0
+ get $data $_key _content
+ ife $_content $nil
+  ret $nil
+ fin
+ cal check_expire $_key
+ ife $ret 0
+  ret $nil
+ fin
+ get $_content 'type' _t
+ ife $_t 'string'
+  get $_content 'value' _val
+  add _val '"' $_val
+  add _val $_val '"'
+  ret $_val
+ els
+  ret $WRONGTYPE
+ fin
+end
+
+def push
+ let _key $0
+ let _val $1
+ let _type $2   / 0: lpush, 1: rpush
+ let _extra $3
+ get $data $_key _content
+ ife $_content $nil
+  jmp new_list
+ fin
+ cal check_expire $_key
+ ife $ret 0
+  jmp new_list
+ fin
+ get $_content 'type' _t
+ ife $_t 'list'
+  jmp update_list
+ els
+  ret $WRONGTYPE
+ fin
+ #new_list
+  let _content {}
+  put $_content 'type' 'list'
+  put $_content 'expire' 0
+  put $_content 'list_l' []
+  put $_content 'list_r' []
+  let _len 0
+  let _list []
+  psh $_list $_val
+  add _len $_len 1
+  #push1
+  pol $_extra _v
+  jeq $_v $nil push1_end
+  psh $_list $_v
+  add _len $_len 1
+  jmp push1
+  #push1_end
+  ife $_type 0
+   put $_content 'list_l' $_list
+  els
+   put $_content 'list_r' $_list
+  fin
+  put $_content 'length' $_len
+  put $data $_key $_content
+  ret $_len
+ #update_list
+  get $_content 'length' _len
+  ife $_type 0
+   / lpush
+   get $_content 'list_l' _list_l
+   psh $_list_l $_val
+   add _len $_len 1
+   #push2
+   pol $_extra _v
+   jeq $_v $nil push2_end
+   psh $_list_l $_v
+   add _len $_len 1
+   jmp push2
+   #push2_end
+  els
+   / rpush
+   get $_content 'list_r' _list_r
+   psh $_list_r $_val
+   add _len $_len 1
+   #push3
+   pol $_extra _v
+   jeq $_v $nil push3_end
+   psh $_list_r $_v
+   add _len $_len 1
+   jmp push3
+   #push3_end
+  fin
+  put $_content 'length' $_len
+  ret $_len
+end
+
+def pop
+ let _key $0
+ let _type $1 / 0: lpop, 1: rpop
+ get $data $_key _content
+ ife $_content $nil
+  ret $nil
+ fin
+ cal check_expire $_key
+ ife $ret 0
+  ret $nil
+ fin
+ get $_content 'type' _t
+ ife $_t 'list'
+  jmp pop_list
+ els
+  ret $WRONGTYPE
+ fin
+ #pop_list
+ get $_content 'list_l' _list_l
+ get $_content 'list_r' _list_r
+ ife $_type 0
+  / lpop
+  pop $_list_l _val
+  ife $_val $nil
+   pol $_list_r _val
+  fin
+ els
+  / rpop
+  pop $_list_r _val
+  ife $_val $nil
+   pol $_list_l _val
+  fin
+ fin
+ get $_content 'length' _len
+ sub _len $_len 1
+ put $_content 'length' $_len
+ add _val '"' $_val
+ add _val $_val '"'
+ ife $_len 0
+  cal del $_key
+ fin
+ ret $_val
+end
+
+def len
+ let _key $0
+ get $data $0 _content
+ ife $_content $nil
+  ret 0
+ fin
+ cal check_expire $_key
+ ife $ret 0
+  ret 0
+ fin
+ get $_content 'type' _t
+ ife $_t 'list'
+  jmp get_list_len
+ els
+  ret $WRONGTYPE
+ fin
+ #get_list_len
+ get $_content 'length' _len
+ ret $_len
+end
+
+def range
+ let _key $0
+ get $data $0 _content
+ ife $_content $nil
+  prt '(empty list or set)'
+  ret $nil
+ fin
+ cal check_expire $_key
+ ife $ret 0
+  prt '(empty list or set)'
+  ret $nil
+ fin
+ get $_content 'type' _t
+ ife $_t 'list'
+  jmp get_list
+ els
+  prt $WRONGTYPE
+  ret $nil
+ fin
+ #get_list
+ get $_content 'list_l' _list_l
+ let _tmp_l []
+ get $_content 'list_r' _list_r
+ let _tmp_r []
+ let _res []
+ #get_left
+ pop $_list_l _v
+ jeq $_v $nil done_left
+ psh $_res $_v
+ psh $_tmp_l $_v
+ jmp get_left
+ #done_left
+ let _rev_tmp_l []
+ #rev_l
+ pop $_tmp_l _v
+ jeq $_v $nil done_rev_l
+ psh $_rev_tmp_l $_v
+ jmp rev_l
+ #done_rev_l
+ put $_content 'list_l' $_rev_tmp_l
+ #get_right
+ pol $_list_r _v
+ jeq $_v $nil finish
+ psh $_res $_v
+ psh $_tmp_r $_v
+ jmp get_right
+ #finish
+ put $_content 'list_r' $_tmp_r
+ get $_content 'length' _len
+ psh $_res $_len
+ ret $_res / its last value is length
+end
+
+def exists
+ get $data $0 _content
+ ife $_content $nil
+  ret 0
+ fin
+ cal check_expire $0
+ ife $ret 0
+  ret 0
+ fin
+ ret 1
+end
+
+def del
+ del $data $0
+end
+
+def incr
+ get $data $0 _content
+ ife $_content $nil
+  cal set $0 1
+  ret 1
+ fin
+ cal check_expire $0
+ ife $ret 0
+  cal set $0 1
+  ret 1
+ fin
+ get $_content 'value' val
+ int _new_val $val
+ ife $_new_val $nil
+  ret 'ERR value is not an integer or out of range'
+ fin
+ add _new_val $_new_val 1
+ put $_content 'value' $_new_val
+ ret $_new_val
+end
+
+def decr
+ get $data $0 _content
+ ife $_content $nil
+  cal set $0 -1
+  ret -1
+ fin
+ cal check_expire $0
+ ife $ret 0
+  cal set $0 -1
+  ret -1
+ fin
+ get $_content 'value' val
+ int _new_val $val
+ ife $_new_val $nil
+  ret 'ERR value is not an integer or out of range'
+ fin
+ sub _new_val $_new_val 1
+ put $_content 'value' $_new_val
+ ret $_new_val
+end
+
+def expire
+ get $data $0 _content
+ ife $_content $nil
+  ret 0
+ fin
+ cal check_expire $0
+ ife $ret 0
+  ret 0
+ fin
+ tim _now now
+ int _sec $1
+ ife $2 0    / expire
+  add _new_expire $_now $_sec
+ els            / pexpire
+  mul _milli $_sec 1000
+  add _new_expire $_now $_milli
+ fin
+ put $_content 'expire' $_new_expire
+ ret 1
+end
+
+def ttl
+ get $data $0 _content
+ ife $_content $nil
+  ret -2
+ fin
+ cal check_expire $0
+ ife $ret 0
+  ret -2
+ fin
+ get $_content 'expire' _expire
+ ife $_expire 0
+  ret -1
+ fin
+ tim _now now
+ sub _diff $_expire $_now
+ ife $1 1     / pttl
+  div _diff $_diff 1000
+ fin
+ ret $_diff
+end
+
+def persist
+ get $data $0 _content
+ ife $_content $nil
+  ret 0
+ fin
+ cal check_expire $0
+ ife $ret 0
+  ret 0
+ fin
+ get $_content 'expire' _expire
+ ife $_expire 0
+  ret 0
+ fin
+ put $_content 'expire' 0
+ ret 1
+end
+
+def check_expire
+ / assert key exists
+ get $data $0 _content
+ get $_content 'expire' _expire
+ ife $_expire 0
+  ret 1
+ fin
+ tim _now now
+ ifg $_now $_expire
+  cal del $0
+  ret 0 / expired
+ fin
+ ret 1
+end
+
+def wrong_num_arg
+ add str 'ERR wrong number of arguments for "' $0
+ add str $str '" command'
+ prt $str
+end
+
+def print_list
+ / ** this func will consume the input list **
+ let _list $0
+ int _start $1
+ int _end $2
+ let _len $3 / -1 for printing all
+ ifg $_len 0
+  ifg 0 $_start
+    add _start $_len $_start
+    ifg 0 $_start
+     let _start 0
+    fin
+  fin
+  ifg 0 $_end
+    add _end $_len $_end
+    ifg 0 $_end
+    let _end -1
+    fin
+  fin
+ fin
+ let _i 0
+ let _idx 1
+ let _empty 1
+ jeq $_len -1 start_print / print all
+ jlt $_start $_len find_start
+ ret 0
+ #find_start
+ ife $_i $_start
+  jmp start_print
+ fin
+ pol $_list _v
+ jeq $_v $nil done_print
+ add _i $_i 1
+ jmp find_start
+ #start_print
+ ifg $_end 0
+  jgt $_i $_end done_print
+ fin
+ pol $_list _val
+ jeq $_val $nil done_print
+ add _i $_i 1
+ ifg $_end 0
+  jgt $_i $_len done_print
+ fin
+ add _v $_idx ') "'
+ add _v $_v $_val
+ add _v $_v '"'
+ prt $_v
+ let _empty 0
+ add _idx $_idx 1
+ jmp start_print
+ #done_print
+ ife $_empty 1
+  ret 0
+ els
+  ret 1
+ fin
+end
+
+def parse_input
+ let tokens []
+ #next_token
+ let token ''
+ #parse_token
+ pol $input c
+ jeq $c '' parse_done
+ jeq $c ' ' token_done
+ /jeq $c '\'' parse_string
+ jeq $c '"' parse_string
+ jmp add_token_char
+ 
+ #parse_string
+ let q $c
+ let s ''
+ #parse_string_char
+ pol $input c
+ ife $c $q
+  psh $tokens $s
+  jmp next_token
+ els
+  psh $s $c
+  jmp parse_string_char
+ fin
+ 
+ #add_token_char
+ add token $token $c
+ jmp parse_token
+ #token_done
+ ife $token ''
+  jmp next_token
+ els
+  psh $tokens $token
+ fin
+ jmp next_token
+ #parse_done
+ ife $token ''
+  ret
+ fin
+ psh $tokens $token
+end
+
+#loop
+prt '> ' ''
+inp input
+jeq $input 'quit' exit
+
+cal parse_input
+pol $tokens cmd
+
+ife $cmd $nil
+ jmp loop
+fin
+/ ----- SET -----
+ife $cmd 'set'
+ pol $tokens key
+ pol $tokens val
+ ife $val $nil
+  cal wrong_num_arg 'set'
+  jmp loop
+ fin
+ cal set $key $val
+ prt 'OK'
+ jmp loop
+fin
+/ ----- LPUSH -----
+ife $cmd 'lpush'
+ pol $tokens key
+ pol $tokens val
+ ife $val $nil
+  cal wrong_num_arg 'lpush'
+  jmp loop
+ fin
+ cal push $key $val 0 $tokens
+ prt $ret
+ jmp loop
+fin
+/ ----- RPUSH -----
+ife $cmd 'rpush'
+ pol $tokens key
+ pol $tokens val
+ ife $val $nil
+  cal wrong_num_arg 'rpush'
+  jmp loop
+ fin
+ cal push $key $val 1 $tokens
+ prt $ret
+ jmp loop
+fin
+/ ----- LPOP -----
+ife $cmd 'lpop'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'lpop'
+  jmp loop
+ fin
+ cal pop $key 0
+ ife $ret $nil
+  prt '(nil)'
+ els
+  prt $ret
+ fin
+ jmp loop
+fin
+/ ----- RPOP -----
+ife $cmd 'rpop'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'rpop'
+  jmp loop
+ fin
+ cal pop $key 1
+ ife $ret $nil
+  prt '(nil)'
+ els
+  prt $ret
+ fin
+ jmp loop
+fin
+/ ----- LLEN -----
+ife $cmd 'llen'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'llen'
+  jmp loop
+ fin
+ cal len $key
+ prt $ret
+ jmp loop
+fin
+/ ----- LRANGE -----
+ife $cmd 'lrange'
+ pol $tokens key
+ pol $tokens start
+ pol $tokens end
+ ife $end $nil
+  cal wrong_num_arg 'lrange'
+  jmp loop
+ fin
+ cal range $key
+ ife $ret $nil
+ els
+  pop $ret len
+  cal print_list $ret $start $end $len
+  ife $ret 0
+   prt '(empty list or set)'
+  fin
+ fin
+ jmp loop
+fin
+/ ----- GET -----
+ife $cmd 'get'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'get'
+  jmp loop
+ fin
+ cal get $key
+ ife $ret $nil
+  prt '(nil)'
+ els
+  prt $ret
+ fin
+ jmp loop
+fin
+/ ----- EXISTS -----
+ife $cmd 'exists'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'exists'
+  jmp loop
+ fin
+ cal exists $key
+ prt $ret
+ jmp loop
+fin
+/ ----- DEL -----
+ife $cmd 'del'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'del'
+  jmp loop
+ fin
+ cal del $key
+ prt 'OK'
+ jmp loop
+fin
+ife $cmd 'ping'
+ prt 'PONG'
+ jmp loop
+fin
+/ ----- INCR -----
+ife $cmd 'incr'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'incr'
+  jmp loop
+ fin
+ cal incr $key
+ prt $ret
+ jmp loop
+fin
+/ ----- DECR -----
+ife $cmd 'decr'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'decr'
+  jmp loop
+ fin
+ cal decr $key
+ prt $ret
+ jmp loop
+fin
+/ ----- EXPIRE -----
+ife $cmd 'expire'
+ pol $tokens key
+ pol $tokens sec
+ ife $sec $nil
+  cal wrong_num_arg 'expire'
+  jmp loop
+ fin
+ cal expire $key $sec 0
+ prt $ret
+ jmp loop
+fin
+/ ----- PEXPIRE -----
+ife $cmd 'pexpire'
+ pol $tokens key
+ pol $tokens millisec
+ ife $millisec $nil
+  cal wrong_num_arg 'pexpire'
+  jmp loop
+ fin
+ cal expire $key $millisec 1
+ prt $ret
+ jmp loop
+fin
+/ ----- SETEX -----
+ife $cmd 'setex'
+ pol $tokens key
+ pol $tokens sec
+ pol $tokens val
+ ife $val $nil
+  cal wrong_num_arg 'setex'
+  jmp loop
+ fin
+ cal set $key $val
+ cal expire $key $sec
+ prt $ret
+ jmp loop
+fin
+/ ----- TTL -----
+ife $cmd 'ttl'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'ttl'
+  jmp loop
+ fin
+ cal ttl $key 0
+ prt $ret
+ jmp loop
+fin
+/ ----- PTTL -----
+ife $cmd 'pttl'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'pttl'
+  jmp loop
+ fin
+ cal ttl $key 1
+ prt $ret
+ jmp loop
+fin
+/ ----- PERSIST -----
+ife $cmd 'persist'
+ pol $tokens key
+ ife $key $nil
+  cal wrong_num_arg 'persist'
+  jmp loop
+ fin
+ cal persist $key
+ prt $ret
+ jmp loop
+fin
+/ ----- ECHO -----
+ife $cmd 'echo'
+ pol $tokens msg
+ add msg '"' $msg
+ add msg $msg '"'
+ prt $msg
+ jmp loop
+fin
+/ ----- DATA -----
+ife $cmd 'data'
+ prt $data
+ jmp loop
+fin
+/ ----- KEYS -----
+ife $cmd 'keys'
+ key $data keys
+ cal print_list $keys 0 -1 -1
+ jmp loop
+fin
+/ ----- FLUSHALL -----
+ife $cmd 'flushall'
+ let data {}
+ jmp loop
+fin
+/ ----- HELP -----
+ife $cmd 'help'
+ prt 'Supported commands:'
+ prt 'data decr del echo exists expire flushall get incr keys llen lpop lpush lrange persist pexpire ping pttl quit rpop rpush set setex ttl'
+ jmp loop
+fin
+add err 'ERR unknown command: ' $cmd
+prt $err
+jmp loop
+
+#exit
+prt 'bye'

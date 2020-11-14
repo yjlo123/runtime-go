@@ -7,7 +7,7 @@ import (
 
 func main() {
 
-	dat, err := ioutil.ReadFile("../examples/func.runtime")
+	dat, err := ioutil.ReadFile("../examples/rundis.runtime")
 	if err != nil {
 		panic(err)
 	}

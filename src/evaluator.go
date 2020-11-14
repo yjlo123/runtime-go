@@ -1,10 +1,43 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 )
+
+func advancePcUntil(program [][]string, env *Env, cmd string) {
+	for env.Pc <= len(program) && (len(program[env.Pc]) < 1 || program[env.Pc][0] != cmd) {
+		env.AdvancePc()
+	}
+}
+
+func advancePcToIfFalse(program [][]string, env *Env) {
+	env.AdvancePc() // first ife or ifg
+	nestedIfCount := 0
+	for env.Pc <= len(program) {
+		if len(program[env.Pc]) < 1 {
+			continue
+		}
+		currentCmd := program[env.Pc][0]
+		if currentCmd == "ife" || currentCmd == "ifg" {
+			nestedIfCount++
+		} else if currentCmd == "fin" {
+			if nestedIfCount == 0 {
+				return
+			}
+			nestedIfCount--
+		} else if currentCmd == "els" {
+			if nestedIfCount == 0 {
+				return
+			}
+		}
+		env.AdvancePc()
+	}
+}
 
 // Evaluate ..
 func Evaluate(program [][]string, env *Env) {
@@ -17,23 +50,35 @@ func Evaluate(program [][]string, env *Env) {
 		if len(ts) > 0 {
 			cmd := ts[0]
 			if cmd == "prt" {
-				fmt.Println(env.Express(ts[1]).GetValue())
+				if len(ts) > 2 {
+					ending := env.Express(ts[2]).GetValue().(string)
+					fmt.Print(env.Express(ts[1]).GetValue().(string) + ending)
+				} else {
+					fmt.Println(env.Express(ts[1]).GetValue())
+				}
 			} else if cmd == "slp" {
 				time.Sleep(time.Duration(env.Express(ts[1]).GetValue().(int)) * time.Millisecond)
 			} else if cmd == "let" {
 				val := env.Express(ts[2])
 				env.AssignVar(ts[1], val)
 			} else if cmd == "inp" {
-				var input string
-				fmt.Scanln(&input)
-				env.AssignVar(ts[1], NewValue(input))
+				consoleReader := bufio.NewReader(os.Stdin)
+				input, _ := consoleReader.ReadString('\n')
+				input = strings.Replace(input, "\r\n", "\n", -1)
+				env.AssignVar(ts[1], NewValue(input[0:len(input)-1]))
 			} else if cmd == "int" {
 				val := env.Express(ts[2])
-				intVal, err := strconv.Atoi(val.GetValue().(string))
-				if err != nil {
-					env.AssignVar(ts[1], nil)
+				switch val.Type {
+				case ValueTypeInt:
+					intVal := val.GetValue().(int)
+					env.AssignVar(ts[1], NewValue(intVal))
+				case ValueTypeStr:
+					intVal, err := strconv.Atoi(val.GetValue().(string))
+					if err != nil {
+						env.AssignVar(ts[1], NewValue(nil))
+					}
+					env.AssignVar(ts[1], NewValue(intVal))
 				}
-				env.AssignVar(ts[1], NewValue(intVal))
 			} else if cmd == "str" {
 				val := env.Express(ts[2])
 				strVal := strconv.Itoa(val.GetValue().(int))
@@ -44,30 +89,74 @@ func Evaluate(program [][]string, env *Env) {
 			} else if cmd == "add" || cmd == "sub" || cmd == "mul" || cmd == "div" {
 				val1 := env.Express(ts[2])
 				val2 := env.Express(ts[3])
-				var res int
+				var res *Value
 				if cmd == "add" {
-					res = val1.GetValue().(int) + val2.GetValue().(int)
+					if val1.Type == ValueTypeInt && val2.Type == ValueTypeInt {
+						// int + int
+						res = NewValue(val1.GetValue().(int) + val2.GetValue().(int))
+					} else if val1.Type == ValueTypeStr && val2.Type == ValueTypeStr {
+						// str + str
+						res = NewValue(val1.GetValue().(string) + val2.GetValue().(string))
+					} else if val1.Type == ValueTypeStr && val2.Type == ValueTypeInt {
+						// str + int
+						res = NewValue(val1.GetValue().(string) + strconv.Itoa(val2.GetValue().(int)))
+					} else if val1.Type == ValueTypeInt && val2.Type == ValueTypeStr {
+						// int + str
+						res = NewValue(strconv.Itoa(val1.GetValue().(int)) + val2.GetValue().(string))
+					} else {
+						fmt.Println(ts)
+						panic(fmt.Sprintf("add unsupported data type: %s, %s\n", val1.Type, val2.Type))
+					}
 				} else if cmd == "sub" {
-					res = val1.GetValue().(int) - val2.GetValue().(int)
+					res = NewValue(val1.GetValue().(int) - val2.GetValue().(int))
 				} else if cmd == "mul" {
-					res = val1.GetValue().(int) * val2.GetValue().(int)
+					res = NewValue(val1.GetValue().(int) * val2.GetValue().(int))
 				} else if cmd == "div" {
-					res = val1.GetValue().(int) / val2.GetValue().(int)
+					res = NewValue(val1.GetValue().(int) / val2.GetValue().(int))
 				} else if cmd == "mod" {
-					res = val1.GetValue().(int) % val2.GetValue().(int)
+					res = NewValue(val1.GetValue().(int) % val2.GetValue().(int))
 				}
-				env.AssignVar(ts[1], NewValue(res))
+				env.AssignVar(ts[1], res)
 				// LIST
 			} else if cmd == "psh" {
-				list := env.Express(ts[1]).GetValue().(*List)
-				list.Push(env.Express(ts[2]))
-			} else if cmd == "pop" {
-				list := env.Express(ts[1]).GetValue().(*List)
-				val := list.Pop()
-				env.AssignVar(ts[2], val)
-			} else if cmd == "pol" {
-				list := env.Express(ts[1]).GetValue().(*List)
-				val := list.Poll()
+				listVal := env.Express(ts[1])
+				switch listVal.Type {
+				case ValueTypeList:
+					list := listVal.GetValue().(*List)
+					list.Push(env.Express(ts[2]))
+				case ValueTypeStr:
+					str := env.Express(ts[2]).GetValue().(string)
+					listVal.Val += str
+				}
+			} else if cmd == "pol" || cmd == "pop" {
+				listVal := env.Express(ts[1])
+				var val *Value
+				switch listVal.Type {
+				case ValueTypeList:
+					list := listVal.GetValue().(*List)
+					if cmd == "pol" {
+						val = list.Poll()
+					} else {
+						val = list.Pop()
+					}
+				case ValueTypeStr:
+					str := listVal.GetValue().(string)
+					if len(str) > 0 {
+						if cmd == "pol" {
+							listVal.Val = str[1:]
+							val = NewValue(str[0:1])
+						} else {
+							listVal.Val = str[0 : len(str)-1]
+							val = NewValue(str[len(str)-1 : len(str)])
+						}
+					} else {
+						val = NewValue("")
+					}
+
+				default:
+					fmt.Println(env.GetFrame().Vars)
+					panic(fmt.Sprintf("pol invalid data type: %s %s", ts, listVal.Type))
+				}
 				env.AssignVar(ts[2], val)
 				// MAP
 			} else if cmd == "get" {
@@ -89,7 +178,7 @@ func Evaluate(program [][]string, env *Env) {
 				env.AssignVar(ts[2], NewValue(m.GetKeys()))
 				// JUMP
 			} else if cmd == "jmp" {
-				env.GotoLabelByName(ts[3])
+				env.GotoLabelByName(ts[1])
 			} else if cmd == "jne" || cmd == "jeq" || cmd == "jlt" || cmd == "jgt" {
 				val1 := env.Express(ts[1])
 				val2 := env.Express(ts[2])
@@ -99,11 +188,27 @@ func Evaluate(program [][]string, env *Env) {
 					(cmd == "jgt" && val1.IsGreaterThan(val2)) {
 					env.GotoLabelByName(ts[3])
 				}
+			} else if cmd == "tim" {
+				timeType := ts[2]
+				res := 0
+				switch timeType {
+				case "now":
+					res = int(time.Now().Unix())
+				}
+				env.AssignVar(ts[1], NewValue(res))
+				// IF_ELSE
+			} else if cmd == "ife" || cmd == "ifg" {
+				val1 := env.Express(ts[1])
+				val2 := env.Express(ts[2])
+				if (!val1.Equals(val2) && cmd == "ife") ||
+					(!val1.IsGreaterThan(val2) && cmd == "ifg") {
+					advancePcToIfFalse(program, env)
+				}
+			} else if cmd == "els" {
+				advancePcUntil(program, env, "fin")
 				// FUNC
 			} else if cmd == "def" {
-				for env.Pc <= len(program) && program[env.Pc][0] != "end" {
-					env.AdvancePc()
-				}
+				advancePcUntil(program, env, "end")
 			} else if cmd == "cal" {
 				funcName := ts[1]
 				var args []*Value
@@ -116,10 +221,15 @@ func Evaluate(program [][]string, env *Env) {
 				frame := env.PopFrame()
 				env.Pc = frame.Pc
 			} else if cmd == "ret" {
-				retValue := env.Express(ts[1])
-				frame := env.PopFrame()
-				env.AssignReturnedVal(retValue)
-				env.Pc = frame.Pc
+				if len(ts) > 1 {
+					retValue := env.Express(ts[1])
+					frame := env.PopFrame()
+					env.AssignReturnedVal(retValue)
+					env.Pc = frame.Pc
+				} else {
+					frame := env.PopFrame()
+					env.Pc = frame.Pc
+				}
 			}
 		}
 		env.AdvancePc()
