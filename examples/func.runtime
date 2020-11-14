@@ -1,12 +1,24 @@
 def func_a
  prt '== A start'
- cal func_b
+ cal func_b 4
+ let _a 12
+ prt $_a
+ prt $_b
  prt '== A end'
+ ret $ret
 end
 
 def func_b
  prt '** B start'
+ let _a abc
+ prt $_a
  prt '** B end'
+ prt $0
+ prt 30
+ add _v $0 30
+ ret $_v
 end
 
 cal func_a
+prt $_a
+prt $ret

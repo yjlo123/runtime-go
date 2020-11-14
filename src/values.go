@@ -56,6 +56,12 @@ func (val Value) Equals(val2 *Value) bool {
 	return val.Type == val2.Type && val.Val == val2.Val
 }
 
+// IsGreaterThan ..
+func (val Value) IsGreaterThan(val2 *Value) bool {
+	// TODO compare list & map
+	return val.Type == val2.Type && val.Val > val2.Val
+}
+
 // NewValue ..
 func NewValue(val interface{}) *Value {
 	if val == nil {

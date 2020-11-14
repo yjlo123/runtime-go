@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	screenInsetX = 130
+	screenInsetX = 80
 	screenInsetY = 62
 
 	screenLines = 25
@@ -21,9 +21,10 @@ const (
 )
 
 var (
-	screenSize = fyne.Size{800, 600}
+	screenSize = fyne.Size{Width: 800, Height: 600}
 	lineDelay  = time.Second / 10
 
+	// Icon ..
 	Icon = icon
 )
 
@@ -154,7 +155,7 @@ func (b *beeb) scroll() {
 	text.Text = ""
 	canvas.Refresh(text)
 
-	b.current -= 1
+	b.current--
 }
 
 func (b *beeb) onRune(r rune) {
@@ -236,7 +237,7 @@ func Show(app fyne.App) {
 	b := beeb{}
 	app.Settings().SetTheme(&beebTheme{})
 
-	window := app.NewWindow("BBC Emulator")
+	window := app.NewWindow("Runtime Script")
 	window.SetContent(b.loadUI())
 	window.SetPadded(false)
 	window.SetFixedSize(true)
