@@ -1,15 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 )
 
 func main() {
+	args := os.Args[1:]
+	if len(args) < 1 {
+		fmt.Printf("Usage: runtime <file_path>\n")
+		return
+	}
 
-	dat, err := ioutil.ReadFile("../examples/runtime_script.runtime")
+	dat, err := ioutil.ReadFile(args[0])
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 	src := string(dat)
 
@@ -17,13 +24,6 @@ func main() {
 	src = strings.Replace(src, "\r\n", "\n", -1)
 
 	program := Tokenize(src)
-
-	// for i, ts := range program {
-	// 	fmt.Println(i)
-	// 	fmt.Printf("%d: [%s]\n", i, strings.Join(ts, ", "))
-	// }
-
 	env := Parse(program)
 	Evaluate(program, env)
-	//fmt.Println(env.Funcs)
 }

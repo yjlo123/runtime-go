@@ -163,7 +163,7 @@ func Evaluate(program [][]string, env *Env) {
 				}
 				env.AssignVar(ts[2], val)
 				// MAP
-			} else if cmd == "get" {
+			} else if cmd == "get" || cmd == "put" || cmd == "del" {
 				m := env.Express(ts[1]).GetValue().(*Map)
 				keyValue := env.Express(ts[2])
 				key := ""
@@ -172,27 +172,18 @@ func Evaluate(program [][]string, env *Env) {
 				} else if keyValue.Type == ValueTypeInt {
 					key = strconv.Itoa(keyValue.GetValue().(int))
 				} else {
-					panic("get: Invalid key data type")
+					panic(fmt.Sprintf("%s: Invalid key data type", cmd))
 				}
-				val := m.Get(key)
-				env.AssignVar(ts[3], val)
-			} else if cmd == "put" {
-				m := env.Express(ts[1]).GetValue().(*Map)
-				keyValue := env.Express(ts[2])
-				key := ""
-				if keyValue.Type == ValueTypeStr {
-					key = keyValue.GetValue().(string)
-				} else if keyValue.Type == ValueTypeInt {
-					key = strconv.Itoa(keyValue.GetValue().(int))
-				} else {
-					panic("put: Invalid key data type")
+
+				if cmd == "get" {
+					val := m.Get(key)
+					env.AssignVar(ts[3], val)
+				} else if cmd == "put" {
+					val := env.Express(ts[3])
+					m.Put(key, val)
+				} else if cmd == "del" {
+					m.Delete(key)
 				}
-				val := env.Express(ts[3])
-				m.Put(key, val)
-			} else if cmd == "del" {
-				m := env.Express(ts[1]).GetValue().(*Map)
-				key := env.Express(ts[2]).GetValue().(string)
-				m.Delete(key)
 			} else if cmd == "key" {
 				m := env.Express(ts[1]).GetValue().(*Map)
 				env.AssignVar(ts[2], NewValue(m.GetKeys()))
@@ -261,18 +252,7 @@ func Evaluate(program [][]string, env *Env) {
 						args = append(args, argVal)
 					} else {
 						// pass by value
-						var newVal *Value
-						switch argVal.Type {
-						case ValueTypeInt:
-							newVal = NewValue(argVal.GetValue().(int))
-						case ValueTypeStr:
-							newVal = NewValue(argVal.GetValue().(string))
-						case ValueTypeNil:
-							newVal = NewValue(nil)
-						default:
-							panic("cal: invalid arg data type")
-						}
-						args = append(args, newVal)
+						args = append(args, argVal.MakeCopy())
 					}
 				}
 				env.PushFrame(funcName, args)

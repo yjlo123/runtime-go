@@ -22,7 +22,7 @@ type Value struct {
 	MapPtr  *Map
 }
 
-func (val Value) String() string {
+func (val *Value) String() string {
 	if val.Type == ValueTypeList {
 		return fmt.Sprintf("%s(%s)", *val.ListPtr, val.Type)
 	} else if val.Type == ValueTypeMap {
@@ -32,7 +32,7 @@ func (val Value) String() string {
 }
 
 // GetValue returns the real value of the Value
-func (val Value) GetValue() interface{} {
+func (val *Value) GetValue() interface{} {
 	switch val.Type {
 	case ValueTypeInt:
 		intVal, _ := strconv.Atoi(val.Val)
@@ -51,15 +51,30 @@ func (val Value) GetValue() interface{} {
 }
 
 // Equals ..
-func (val Value) Equals(val2 *Value) bool {
+func (val *Value) Equals(val2 *Value) bool {
 	// TODO compare list & map
 	return val.Type == val2.Type && val.Val == val2.Val
 }
 
 // IsGreaterThan ..
-func (val Value) IsGreaterThan(val2 *Value) bool {
+func (val *Value) IsGreaterThan(val2 *Value) bool {
 	// TODO compare list & map
 	return val.Type == val2.Type && val.Val > val2.Val
+}
+
+// MakeCopy ..
+// only available for str, list, nil
+func (val *Value) MakeCopy() *Value {
+	switch val.Type {
+	case ValueTypeInt:
+		return NewValue(val.GetValue().(int))
+	case ValueTypeStr:
+		return NewValue(val.GetValue().(string))
+	case ValueTypeNil:
+		return NewValue(nil)
+	default:
+		panic("Invalid arg data type")
+	}
 }
 
 // NewValue ..

@@ -58,13 +58,21 @@ func (env *Env) Express(expr string) *Value {
 
 // AssignVar ..
 func (env *Env) AssignVar(varName string, val *Value) {
+	var useVal *Value
+	// only list & map will be passed as reference
+	if val.Type == ValueTypeList || val.Type == ValueTypeMap {
+		useVal = val
+	} else {
+		useVal = val.MakeCopy()
+	}
+
 	lastFrame := env.GetFrame()
 	if varName[0] == '_' && lastFrame != nil {
 		// function scoped var
-		lastFrame.Vars[varName] = val
+		lastFrame.Vars[varName] = useVal
 	} else {
 		// global var
-		env.Vars[varName] = val
+		env.Vars[varName] = useVal
 	}
 }
 

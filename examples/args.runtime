@@ -1,0 +1,7 @@
+let st 'abc'
+
+let s2 $st
+
+pol $st a
+prt $st
+prt $s2
