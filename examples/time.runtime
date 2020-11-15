@@ -1,0 +1,23 @@
+let list []
+tim y year
+psh $list $y
+tim m month
+psh $list $m
+tim d date
+psh $list $d
+
+tim w day
+psh $list $w
+
+tim h hour
+psh $list $h
+tim m minute
+psh $list $m
+tim s second
+psh $list $s
+tim mi milli
+psh $list $mi
+prt $list
+
+rnd a 4 10
+prt $a

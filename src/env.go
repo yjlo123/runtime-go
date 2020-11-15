@@ -5,11 +5,16 @@ import (
 	"strconv"
 )
 
+type funcDetail struct {
+	Pc     int
+	Labels map[string]int
+}
+
 // Env ..
 type Env struct {
 	Labels map[string]int
 	Vars   map[string]*Value // global vars
-	Funcs  map[string]int
+	Funcs  map[string]*funcDetail
 	stack  []*Frame
 	Pc     int
 }
@@ -26,6 +31,9 @@ func (env *Env) Express(expr string) *Value {
 	}
 	if expr[0] == '$' {
 		// reference
+		if expr[1:] == "nil" {
+			return NewValue(nil)
+		}
 		return env.GetVarVal(expr[1:])
 	} else if num, err := strconv.Atoi(expr); err == nil {
 		// integer
@@ -37,8 +45,10 @@ func (env *Env) Express(expr string) *Value {
 		}
 		return NewValue(expr)
 	} else if expr[0] == '[' {
+		// list
 		return NewValue(&List{})
 	} else if expr[0] == '{' {
+		// map
 		return NewValue(&Map{})
 	}
 
@@ -78,7 +88,16 @@ func (env *Env) GetVarVal(varName string) *Value {
 
 // GotoLabelByName ..
 func (env *Env) GotoLabelByName(name string) {
-	env.Pc = env.Labels[name]
+	lastFrame := env.GetFrame()
+	if lastFrame == nil {
+		// global label
+		env.Pc = env.Labels[name]
+	} else {
+		// func label
+		funcName := lastFrame.FuncName
+		env.Pc = env.Funcs[funcName].Labels[name]
+	}
+
 }
 
 /* =========

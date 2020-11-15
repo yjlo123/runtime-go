@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // Tokenize ..
 func Tokenize(src string) [][]string {
 	var tokens [][]string
@@ -26,9 +28,15 @@ func Tokenize(src string) [][]string {
 			i++
 			for {
 				if i == len(src) || src[i] == '\n' {
-					//fmt.Println(tokens, line)
-					panic("Unterminated string")
+					panic(fmt.Sprintf("Unterminated string: `%s`", token))
 				}
+				if src[i] == '\\' {
+					i++
+					token += string(src[i])
+					i++
+					continue
+				}
+
 				if src[i] == quote {
 					break
 				}
@@ -62,17 +70,34 @@ func Tokenize(src string) [][]string {
 // Parse ..
 func Parse(program [][]string) *Env {
 	labels := make(map[string]int)
-	funcs := make(map[string]int)
+	funcs := make(map[string]*funcDetail)
+
+	var currentFuncName string
+	var currentFuncDetail *funcDetail
 	for i, ts := range program {
 		if len(ts) < 1 {
 			continue
 		}
 		cmd := ts[0]
 		if cmd[0] == '#' {
-			labels[cmd[1:]] = i
+			if currentFuncName != "" {
+				// func label
+				currentFuncDetail.Labels[cmd[1:]] = i
+			} else {
+				// global label
+				labels[cmd[1:]] = i
+			}
 		}
 		if cmd == "def" {
-			funcs[ts[1]] = i
+			currentFuncName = ts[1]
+			currentFuncDetail = &funcDetail{
+				Pc:     i,
+				Labels: make(map[string]int),
+			}
+		} else if cmd == "end" {
+			funcs[currentFuncName] = currentFuncDetail
+			currentFuncName = ""
+			currentFuncDetail = nil
 		}
 	}
 	return &Env{

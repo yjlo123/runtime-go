@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ func advancePcToIfFalse(program [][]string, env *Env) {
 	nestedIfCount := 0
 	for env.Pc <= len(program) {
 		if len(program[env.Pc]) < 1 {
+			env.AdvancePc()
 			continue
 		}
 		currentCmd := program[env.Pc][0]
@@ -42,6 +44,7 @@ func advancePcToIfFalse(program [][]string, env *Env) {
 // Evaluate ..
 func Evaluate(program [][]string, env *Env) {
 	//pc := 0
+	rand.Seed(time.Now().UnixNano())
 	for {
 		if env.Pc >= len(program) {
 			break
@@ -76,8 +79,9 @@ func Evaluate(program [][]string, env *Env) {
 					intVal, err := strconv.Atoi(val.GetValue().(string))
 					if err != nil {
 						env.AssignVar(ts[1], NewValue(nil))
+					} else {
+						env.AssignVar(ts[1], NewValue(intVal))
 					}
-					env.AssignVar(ts[1], NewValue(intVal))
 				}
 			} else if cmd == "str" {
 				val := env.Express(ts[2])
@@ -161,12 +165,28 @@ func Evaluate(program [][]string, env *Env) {
 				// MAP
 			} else if cmd == "get" {
 				m := env.Express(ts[1]).GetValue().(*Map)
-				key := env.Express(ts[2]).GetValue().(string)
+				keyValue := env.Express(ts[2])
+				key := ""
+				if keyValue.Type == ValueTypeStr {
+					key = keyValue.GetValue().(string)
+				} else if keyValue.Type == ValueTypeInt {
+					key = strconv.Itoa(keyValue.GetValue().(int))
+				} else {
+					panic("get: Invalid key data type")
+				}
 				val := m.Get(key)
 				env.AssignVar(ts[3], val)
 			} else if cmd == "put" {
 				m := env.Express(ts[1]).GetValue().(*Map)
-				key := env.Express(ts[2]).GetValue().(string)
+				keyValue := env.Express(ts[2])
+				key := ""
+				if keyValue.Type == ValueTypeStr {
+					key = keyValue.GetValue().(string)
+				} else if keyValue.Type == ValueTypeInt {
+					key = strconv.Itoa(keyValue.GetValue().(int))
+				} else {
+					panic("put: Invalid key data type")
+				}
 				val := env.Express(ts[3])
 				m.Put(key, val)
 			} else if cmd == "del" {
@@ -188,12 +208,34 @@ func Evaluate(program [][]string, env *Env) {
 					(cmd == "jgt" && val1.IsGreaterThan(val2)) {
 					env.GotoLabelByName(ts[3])
 				}
+			} else if cmd == "rnd" {
+				val1 := env.Express(ts[2]).GetValue().(int)
+				val2 := env.Express(ts[3]).GetValue().(int)
+				randInt := rand.Intn(val2 - val1)
+				env.AssignVar(ts[1], NewValue(val1+randInt))
 			} else if cmd == "tim" {
 				timeType := ts[2]
 				res := 0
+				now := time.Now()
 				switch timeType {
 				case "now":
-					res = int(time.Now().Unix())
+					res = int(now.UnixNano() / int64(time.Millisecond))
+				case "year":
+					res = now.Year()
+				case "month":
+					res = int(now.Month())
+				case "date":
+					res = now.Day()
+				case "day":
+					res = int(now.Weekday())
+				case "hour":
+					res = now.Hour()
+				case "minute":
+					res = now.Minute()
+				case "second":
+					res = now.Second()
+				case "milli":
+					res = int(now.UnixNano()/int64(time.Millisecond)) % 1000
 				}
 				env.AssignVar(ts[1], NewValue(res))
 				// IF_ELSE
@@ -213,10 +255,28 @@ func Evaluate(program [][]string, env *Env) {
 				funcName := ts[1]
 				var args []*Value
 				for _, v := range ts[2:] {
-					args = append(args, env.Express(v))
+					argVal := env.Express(v)
+					if argVal.Type == ValueTypeList || argVal.Type == ValueTypeMap {
+						// pass by reference
+						args = append(args, argVal)
+					} else {
+						// pass by value
+						var newVal *Value
+						switch argVal.Type {
+						case ValueTypeInt:
+							newVal = NewValue(argVal.GetValue().(int))
+						case ValueTypeStr:
+							newVal = NewValue(argVal.GetValue().(string))
+						case ValueTypeNil:
+							newVal = NewValue(nil)
+						default:
+							panic("cal: invalid arg data type")
+						}
+						args = append(args, newVal)
+					}
 				}
 				env.PushFrame(funcName, args)
-				env.Pc = env.Funcs[funcName]
+				env.Pc = env.Funcs[funcName].Pc
 			} else if cmd == "end" {
 				frame := env.PopFrame()
 				env.Pc = frame.Pc
