@@ -233,25 +233,3 @@ func (m *Map) GetKeys() *List {
 	}
 	return &keys
 }
-
-func testValues() {
-	list := ConstructList([]interface{}{1, 2, "a", 4})
-
-	fmt.Println(list.Poll())
-	fmt.Println(list.Poll())
-	fmt.Println(list.Poll())
-	//fmt.Println(list)
-	list.Push(NewValue(77))
-	list.Push(NewValue("abc"))
-	//fmt.Println(list)
-	fmt.Println(list.Pop())
-	fmt.Println(list.Pop())
-	//fmt.Println(list)
-	list2 := ConstructList([]interface{}{1, 2})
-	list.Push(NewValue(list2))
-	listFromList := list.Pop()
-	fmt.Println(listFromList)
-
-	v := listFromList.GetValue().(*List).Pop()
-	fmt.Println(v)
-}
