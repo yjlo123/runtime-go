@@ -1,12 +1,9 @@
-package main
+package runtime
 
 import (
-	"bufio"
 	"fmt"
 	"math/rand"
-	"os"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -53,22 +50,19 @@ func Evaluate(program [][]string, env *Env) {
 		if len(ts) > 0 {
 			cmd := ts[0]
 			if cmd == "prt" {
+				ending := "\n"
 				if len(ts) > 2 {
-					ending := env.Express(ts[2]).GetValue().(string)
-					fmt.Print(env.Express(ts[1]).GetValue().(string) + ending)
-				} else {
-					fmt.Println(env.Express(ts[1]).GetValue())
+					ending = env.Express(ts[2]).GetValue().(string)
 				}
+				env.Out(env.Express(ts[1]).GetValue(), ending)
 			} else if cmd == "slp" {
 				time.Sleep(time.Duration(env.Express(ts[1]).GetValue().(int)) * time.Millisecond)
 			} else if cmd == "let" {
 				val := env.Express(ts[2])
 				env.AssignVar(ts[1], val)
 			} else if cmd == "inp" {
-				consoleReader := bufio.NewReader(os.Stdin)
-				input, _ := consoleReader.ReadString('\n')
-				input = strings.Replace(input, "\r\n", "\n", -1)
-				env.AssignVar(ts[1], NewValue(input[0:len(input)-1]))
+				input := env.In()
+				env.AssignVar(ts[1], NewValue(input))
 			} else if cmd == "int" {
 				val := env.Express(ts[2])
 				switch val.Type {

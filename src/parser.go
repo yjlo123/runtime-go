@@ -1,6 +1,11 @@
-package main
+package runtime
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
 
 // Tokenize ..
 func Tokenize(src string) [][]string {
@@ -105,5 +110,19 @@ func Parse(program [][]string) *Env {
 		Funcs:  funcs,
 		Vars:   make(map[string]*Value),
 		stack:  []*Frame{},
+		Out: func(content interface{}, ending string) {
+			if ending == "\n" {
+				fmt.Println(content)
+			} else {
+				fmt.Print(content)
+				fmt.Print(ending)
+			}
+		},
+		In: func() string {
+			consoleReader := bufio.NewReader(os.Stdin)
+			input, _ := consoleReader.ReadString('\n')
+			input = strings.Replace(input, "\r\n", "\n", -1)
+			return input[0 : len(input)-1]
+		},
 	}
 }

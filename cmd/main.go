@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+
+	runtime "github.com/yjlo123/runtime-go/src"
 )
 
 func main() {
@@ -23,7 +25,7 @@ func main() {
 	// replace newline characters for windows
 	src = strings.Replace(src, "\r\n", "\n", -1)
 
-	program := Tokenize(src)
-	env := Parse(program)
-	Evaluate(program, env)
+	program := runtime.Tokenize(src)
+	env := runtime.Parse(program)
+	runtime.Evaluate(program, env)
 }
