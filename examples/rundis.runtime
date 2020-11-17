@@ -2,6 +2,10 @@
 / by Siwei
 / Oct 2020
 
+prt 'Rundis'
+prt 'Ver 0.1'
+prt '------------'
+
 let data {}
 
 let WRONG_TYPE 'WRONG_TYPE Operation against a key holding the wrong kind of value'

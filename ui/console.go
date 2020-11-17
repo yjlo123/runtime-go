@@ -15,58 +15,34 @@ import (
 )
 
 const (
-	screenInsetX = 80
-	screenInsetY = 62
+	screenInsetX = 92
+	screenInsetY = 72
 
-	screenLines = 25
-	screenCols  = 40
+	screenLines = 24
+	screenCols  = 38
+
+	cursorChar = "_"
+	maxHistory = 10
 )
 
 var (
 	screenSize = fyne.Size{Width: 800, Height: 600}
-	lineDelay  = time.Second / 10
+	lineDelay  = time.Second * 0 //time.Second / 10
 
 	// Icon ..
 	Icon = icon
 )
 
 type console struct {
-	content []fyne.CanvasObject
-	input   chan string // user input will be sent to this channel after pressing Enter
+	content       []fyne.CanvasObject
+	input         chan string // user input will be sent to this channel after pressing Enter
+	inputLen      int         // user input length
+	headLen       int         // number of chars before the user input
+	history       []string
+	historyCursor int
 
 	overlay *canvas.Image
-	current int
-
-	bufInput []byte
-	endInput bool
-	nextAuto int
-}
-
-func (con *console) Read(p []byte) (n int, err error) {
-	if con.endInput {
-		con.endInput = false
-		con.bufInput = nil
-		p[0] = '\n'
-		return 1, nil
-	}
-	con.bufInput = p
-
-	if p[0] != 0 {
-		return 1, nil
-	}
-
-	time.Sleep(lineDelay)
-	return 0, nil
-}
-
-func (con *console) Write(p []byte) (n int, err error) {
-	str := string(p)
-	if str[len(str)-1] == '\n' {
-		con.appendLine(str[:len(str)-1])
-	} else {
-		con.append(str)
-	}
-	return len(p), nil
+	current int // current line number
 }
 
 func (con *console) MinSize(_ []fyne.CanvasObject) fyne.Size {
@@ -102,13 +78,15 @@ func (con *console) loadUI() fyne.CanvasObject {
 func (con *console) appendLine(line string) {
 	con.append(line)
 	con.newLine()
+	con.inputLen = 0
+	con.headLen = 0
 }
 
 func (con *console) newLine() {
 	time.Sleep(lineDelay)
 	text := con.content[con.current].(*canvas.Text)
 
-	if len(text.Text) > 0 && text.Text[len(text.Text)-1] == '_' {
+	if len(text.Text) > 0 && text.Text[con.headLen+con.inputLen:] == cursorChar {
 		text.Text = text.Text[:len(text.Text)-1]
 		canvas.Refresh(text)
 	}
@@ -121,12 +99,10 @@ func (con *console) newLine() {
 
 func (con *console) append(line string) {
 	text := con.content[con.current].(*canvas.Text)
-	if len(text.Text) > 0 && text.Text[len(text.Text)-1] == '_' {
-		text.Text = text.Text[:len(text.Text)-1] + line + "_"
-	} else {
-		text.Text = text.Text + line
+	if len(text.Text) > 0 && text.Text[con.headLen+con.inputLen-len(line):] == cursorChar {
+		text.Text = text.Text[:len(text.Text)-1]
 	}
-
+	text.Text = text.Text + line
 	canvas.Refresh(text)
 }
 
@@ -135,13 +111,10 @@ func (con *console) blink() {
 		time.Sleep(time.Second / 2)
 		line := con.content[con.current].(*canvas.Text)
 
-		if line.Text == "" {
-			continue
-		}
-		if line.Text[len(line.Text)-1] == '_' {
-			line.Text = line.Text[:len(line.Text)-1]
+		if con.headLen+con.inputLen == len(line.Text) {
+			line.Text = line.Text + cursorChar
 		} else {
-			line.Text = line.Text + "_"
+			line.Text = line.Text[:len(line.Text)-1]
 		}
 		canvas.Refresh(con.content[con.current])
 	}
@@ -164,79 +137,125 @@ func (con *console) scroll() {
 }
 
 func (con *console) onRune(r rune) {
-	if con.bufInput != nil {
-		con.bufInput[0] = byte(r) // TODO could we have typed another?
+	if r > 128 {
+		return
 	}
-	con.append(string(r))
+	if con.headLen+con.inputLen < screenCols-1 {
+		con.inputLen++
+		con.append(string(r))
+	}
 }
 
 func (con *console) onKey(ev *fyne.KeyEvent) {
-	if con.bufInput != nil {
-		if ev.Name == fyne.KeyReturn {
-			con.endInput = true
-		}
-		return
-	}
+	line := con.content[con.current].(*canvas.Text)
+	text := line.Text
 	switch ev.Name {
 	case fyne.KeyReturn:
-		//prog := ">"
-		text := con.content[con.current].(*canvas.Text).Text
-		// if len(text) > 1 {
-		// 	text = text[1:]
-		// 	if len(text) > 0 && text[len(text)-1] == '_' {
-		// 		text = text[:len(text)-1]
-		// 	}
-		// 	prog = strings.TrimSpace(text) + "\n"
-		// }
+		userInput := text[con.headLen : con.headLen+con.inputLen]
 		con.appendLine("")
-		//first := prog[0]
-		// if first >= '0' && first <= '9' {
-		// 	con.program += prog
-		// } else {
-		// commands that can't be called from within a program
-		//cmd := strings.ToUpper(prog[:len(prog)-1])
-		fmt.Println(text)
-		con.input <- text[2:]
-
-		// if cmd == "AUTO" {
-		// 	con.nextAuto = 10
-		// } else if cmd == "RUN" {
-		// 	con.RUN()
-		// } else if cmd == "NEW" {
-		// 	con.NEW()
-		// } else if cmd == "LIST" {
-		// 	con.LIST()
-		// } else if cmd == "QUIT" || cmd == "EXIT" {
-		// 	con.QUIT(fyne.CurrentApp())
-		// } else {
-		// 	//con.runProg(prog)
-		// }
-		//}
-		//con.append(">")
-		if con.nextAuto > 0 {
-			con.append(fmt.Sprintf("%d ", con.nextAuto))
-			con.nextAuto += 10
+		fmt.Println(userInput)
+		con.input <- userInput
+		if len(userInput) > 0 {
+			// push history
+			con.history = append(con.history, userInput)
+			if len(con.history) > maxHistory {
+				con.history = con.history[:maxHistory]
+			}
 		}
+		con.historyCursor = 0
 	case fyne.KeyBackspace:
-		//line := con.content[con.current].(*canvas.Text)
-		//text := line.Text[1:]
-		// if len(text) > 0 && text[len(text)-1] == '_' {
-		// 	text = text[:len(text)-1]
-		// }
-		// if len(text) > 0 {
-		// 	line.Text = ">" + text[:len(text)-1]
-		// 	canvas.Refresh(line)
-		// }
-	case fyne.KeyEscape:
-		text := con.content[con.current].(*canvas.Text)
-		if len(text.Text) == 0 || text.Text[0] != '>' {
-			break
+		if text[con.headLen+con.inputLen:] == cursorChar {
+			text = text[:len(text)-1]
 		}
-
-		con.nextAuto = 0
-		text.Text = ">"
-		canvas.Refresh(text)
+		if len(text) > 0 && con.inputLen > 0 {
+			line.Text = text[:len(text)-1]
+			con.inputLen--
+			canvas.Refresh(line)
+		}
+	case fyne.KeyEscape:
+		if text[con.headLen+con.inputLen:] == cursorChar {
+			text = text[:len(text)-1]
+		}
+		line.Text = text[:len(text)-con.inputLen]
+		con.inputLen = 0
+		canvas.Refresh(line)
+	case fyne.KeyUp:
+		if len(con.history) > 0 {
+			historyIdx := len(con.history) - 1 - con.historyCursor
+			if historyIdx < 0 {
+				return
+			}
+			showHistory(con, historyIdx)
+			con.historyCursor = con.historyCursor + 1
+		}
+		fmt.Println(con.historyCursor)
+	case fyne.KeyDown:
+		if con.historyCursor > 0 {
+			historyIdx := len(con.history) + 1 - con.historyCursor
+			if historyIdx == len(con.history) {
+				return
+			}
+			showHistory(con, historyIdx)
+			con.historyCursor = con.historyCursor - 1
+		}
+		fmt.Println(con.historyCursor)
 	}
+}
+
+func showHistory(con *console, historyIdx int) {
+	line := con.content[con.current].(*canvas.Text)
+	text := line.Text
+	if text[con.headLen+con.inputLen:] == cursorChar {
+		text = text[:len(text)-1]
+	}
+	line.Text = text[:len(text)-con.inputLen]
+	lastInput := con.history[historyIdx]
+	con.inputLen = len(lastInput)
+	con.append(lastInput)
+	canvas.Refresh(line)
+}
+
+func runProgram(con *console, app fyne.App) {
+	dat, err := ioutil.ReadFile("../examples/rundis.runtime")
+	if err != nil {
+		fmt.Println(err)
+	}
+	src := string(dat)
+
+	// replace newline characters for windows
+	src = strings.Replace(src, "\r\n", "\n", -1)
+
+	program := runtime.Tokenize(src)
+	env := runtime.Parse(program)
+	env.Out = func(content interface{}, ending string) {
+		contentStr := fmt.Sprintf("%v", content)
+		if ending == "\n" {
+			for con.headLen+len(contentStr) > screenCols {
+				con.headLen = 0
+				con.appendLine(contentStr[:screenCols])
+				contentStr = contentStr[screenCols:]
+			}
+			con.headLen += len(contentStr)
+			con.appendLine(contentStr)
+
+		} else {
+			contentStr += ending
+
+			for con.headLen+len(contentStr) > screenCols {
+				con.headLen = 0
+				con.appendLine(contentStr[:screenCols])
+				contentStr = contentStr[screenCols:]
+			}
+			con.headLen += len(contentStr)
+			con.append(contentStr)
+		}
+	}
+	env.In = func() string {
+		return <-con.input
+	}
+	runtime.Evaluate(program, env)
+	time.Sleep(time.Second)
+	app.Quit()
 }
 
 // Show starts a new console computer simulator
@@ -256,45 +275,12 @@ func Show(app fyne.App) {
 		Modifier: desktop.ControlModifier,
 		KeyName:  fyne.KeyD,
 	}, func(fyne.Shortcut) {
-		con.append("QUIT")
-		con.appendLine("")
 		go func() {
-			fmt.Println("Quit")
+			app.Quit()
 		}()
 	})
 
-	fmt.Println("Restart")
-
-	//con.append(">")
-	//go con.blink()
-
+	go con.blink()
 	window.Show()
-
-	go runProgram(&con)
-}
-
-func runProgram(con *console) {
-	dat, err := ioutil.ReadFile("../examples/rundis.runtime")
-	if err != nil {
-		fmt.Println(err)
-	}
-	src := string(dat)
-
-	// replace newline characters for windows
-	src = strings.Replace(src, "\r\n", "\n", -1)
-
-	program := runtime.Tokenize(src)
-	env := runtime.Parse(program)
-	env.Out = func(content interface{}, ending string) {
-		if ending == "\n" {
-			con.appendLine(fmt.Sprintf("%v", content))
-		} else {
-			con.append(fmt.Sprintf("%v", content))
-			con.append(fmt.Sprintf("%v", ending))
-		}
-	}
-	env.In = func() string {
-		return <-con.input
-	}
-	runtime.Evaluate(program, env)
+	go runProgram(&con, app)
 }
