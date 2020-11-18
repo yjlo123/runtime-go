@@ -2,8 +2,10 @@ package runtime
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -263,6 +265,41 @@ func Evaluate(program [][]string, env *Env) {
 				} else {
 					frame := env.PopFrame()
 					env.Pc = frame.Pc
+				}
+			} else if cmd == "lod" {
+				fileName := env.Express(ts[1]).GetValue().(string)
+				fileData, err := ioutil.ReadFile(fileName)
+				if err != nil {
+					fmt.Println(err)
+				}
+				data := string(fileData)
+				// replace newline characters for windows
+				data = strings.Replace(data, "\r\n", "\n", -1)
+				fmt.Println(data)
+				env.AssignVar(ts[2], NewValue(data))
+			} else if cmd == "sav" {
+				fileName := env.Express(ts[1]).GetValue().(string)
+				dataContent := env.Express(ts[2])
+				var data []byte
+				if dataContent.Type == ValueTypeStr {
+					data = []byte(dataContent.GetValue().(string))
+				} else if dataContent.Type == ValueTypeList {
+					list := dataContent.GetValue().(*List)
+					for {
+						line := list.Poll()
+						if line.GetValue() == nil {
+							break
+						}
+						if len(data) > 0 {
+							data = append(data, '\n')
+						}
+						data = append(data, []byte(line.GetValue().(string))...)
+					}
+				}
+
+				err := ioutil.WriteFile(fileName, data, 0644)
+				if err != nil {
+					fmt.Println(err)
 				}
 			}
 		}

@@ -35,6 +35,7 @@ var (
 
 type console struct {
 	content       []fyne.CanvasObject
+	inputMode     bool
 	input         chan string // user input will be sent to this channel after pressing Enter
 	inputLen      int         // user input length
 	headLen       int         // number of chars before the user input
@@ -109,14 +110,17 @@ func (con *console) append(line string) {
 func (con *console) blink() {
 	for {
 		time.Sleep(time.Second / 2)
-		line := con.content[con.current].(*canvas.Text)
+		if con.inputMode {
+			// only blink when waiting for user input
+			line := con.content[con.current].(*canvas.Text)
 
-		if con.headLen+con.inputLen == len(line.Text) {
-			line.Text = line.Text + cursorChar
-		} else {
-			line.Text = line.Text[:len(line.Text)-1]
+			if con.headLen+con.inputLen == len(line.Text) {
+				line.Text = line.Text + cursorChar
+			} else {
+				line.Text = line.Text[:len(line.Text)-1]
+			}
+			canvas.Refresh(con.content[con.current])
 		}
-		canvas.Refresh(con.content[con.current])
 	}
 }
 
@@ -163,6 +167,7 @@ func (con *console) onKey(ev *fyne.KeyEvent) {
 			}
 		}
 		con.historyCursor = 0
+		con.inputMode = false
 	case fyne.KeyBackspace:
 		if text[con.headLen+con.inputLen:] == cursorChar {
 			text = text[:len(text)-1]
@@ -216,7 +221,7 @@ func showHistory(con *console, historyIdx int) {
 }
 
 func runProgram(con *console, app fyne.App) {
-	dat, err := ioutil.ReadFile("../examples/rundis.runtime")
+	dat, err := ioutil.ReadFile("./src/program.runtime")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -229,28 +234,34 @@ func runProgram(con *console, app fyne.App) {
 	env := runtime.Parse(program)
 	env.Out = func(content interface{}, ending string) {
 		contentStr := fmt.Sprintf("%v", content)
-		if ending == "\n" {
-			for con.headLen+len(contentStr) > screenCols {
-				con.headLen = 0
-				con.appendLine(contentStr[:screenCols])
-				contentStr = contentStr[screenCols:]
-			}
-			con.headLen += len(contentStr)
-			con.appendLine(contentStr)
 
-		} else {
+		if ending != "\n" {
 			contentStr += ending
+		}
+		contentStrArr := strings.Split(contentStr, "\n")
 
-			for con.headLen+len(contentStr) > screenCols {
+		for i, line := range contentStrArr {
+			for con.headLen+len(line) > screenCols {
 				con.headLen = 0
-				con.appendLine(contentStr[:screenCols])
-				contentStr = contentStr[screenCols:]
+				con.appendLine(line[:screenCols])
+				line = line[screenCols:]
 			}
-			con.headLen += len(contentStr)
-			con.append(contentStr)
+			con.headLen += len(line)
+
+			if ending == "\n" {
+				con.appendLine(line)
+			} else {
+				if i == len(contentStrArr)-1 {
+					con.append(line)
+				} else {
+					con.appendLine(line)
+				}
+			}
+
 		}
 	}
 	env.In = func() string {
+		con.inputMode = true
 		return <-con.input
 	}
 	runtime.Evaluate(program, env)

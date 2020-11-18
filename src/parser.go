@@ -37,7 +37,11 @@ func Tokenize(src string) [][]string {
 				}
 				if src[i] == '\\' {
 					i++
-					token += string(src[i])
+					if src[i] == 'n' {
+						token += string('\n')
+					} else {
+						token += string(src[i])
+					}
 					i++
 					continue
 				}
