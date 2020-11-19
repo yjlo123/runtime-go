@@ -10,9 +10,6 @@ type funcDetail struct {
 	Labels map[string]int
 }
 
-type out func(interface{}, string)
-type in func() string
-
 // Env ..
 type Env struct {
 	Labels map[string]int
@@ -20,8 +17,8 @@ type Env struct {
 	Funcs  map[string]*funcDetail
 	stack  []*Frame
 	Pc     int
-	Out    out
-	In     in
+	Out    func(interface{}, string)
+	In     func() string
 }
 
 // AdvancePc ..
