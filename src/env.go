@@ -10,12 +10,19 @@ type funcDetail struct {
 	Labels map[string]int
 }
 
+type loopDetail struct {
+	items []*Value
+	pc    int // to prevent the same var names
+	index int
+}
+
 // Env ..
 type Env struct {
 	Labels map[string]int
 	Vars   map[string]*Value // global vars
 	Funcs  map[string]*funcDetail
 	stack  []*Frame
+	loops  map[string]*loopDetail
 	Pc     int
 	Out    func(interface{}, string)
 	In     func() string

@@ -128,5 +128,6 @@ func Parse(program [][]string) *Env {
 			input = strings.Replace(input, "\r\n", "\n", -1)
 			return input[0 : len(input)-1]
 		},
+		loops: make(map[string]*loopDetail),
 	}
 }

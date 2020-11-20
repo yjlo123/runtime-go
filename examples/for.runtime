@@ -1,0 +1,26 @@
+clr
+let x 9
+let a []
+psh $a 3 6
+
+let b []
+psh $b 5 7 0
+
+for i 4
+ for j $b
+  add s $i ', '
+  add s $s $j
+  prt $s
+ nxt
+nxt
+
+let m {}
+put $m a 1
+put $m b 2
+
+for k $m
+ prt $k
+nxt
+
+
+inp ab

@@ -40,6 +40,41 @@ func advancePcToIfFalse(program [][]string, env *Env) {
 	}
 }
 
+func backPcToLoopHead(program [][]string, env *Env) {
+	forStack := 0
+	env.Pc--
+	for env.Pc > 0 {
+		currentCmd := program[env.Pc][0]
+		if currentCmd == "for" {
+			if forStack == 0 {
+				env.Pc--
+				return
+			}
+			forStack--
+		} else if currentCmd == "nxt" {
+			forStack++
+		}
+		env.Pc--
+	}
+}
+
+func advancetoLoopEnd(program [][]string, env *Env) {
+	env.Pc++ // first 'for'
+	forStack := 0
+	for env.Pc <= len(program) {
+		currentCmd := program[env.Pc][0]
+		if currentCmd == "for" {
+			forStack++
+		} else if currentCmd == "nxt" {
+			if forStack == 0 {
+				return
+			}
+			forStack--
+		}
+		env.Pc++
+	}
+}
+
 // Evaluate ..
 func Evaluate(program [][]string, env *Env) {
 	//pc := 0
@@ -120,13 +155,15 @@ func Evaluate(program [][]string, env *Env) {
 				// LIST
 			} else if cmd == "psh" {
 				listVal := env.Express(ts[1])
-				switch listVal.Type {
-				case ValueTypeList:
-					list := listVal.GetValue().(*List)
-					list.Push(env.Express(ts[2]))
-				case ValueTypeStr:
-					str := env.Express(ts[2]).GetValue().(string)
-					listVal.Val += str
+				for _, v := range ts[2:] {
+					switch listVal.Type {
+					case ValueTypeList:
+						list := listVal.GetValue().(*List)
+						list.Push(env.Express(v))
+					case ValueTypeStr:
+						str := env.Express(v).GetValue().(string)
+						listVal.Val += str
+					}
 				}
 			} else if cmd == "pol" || cmd == "pop" {
 				listVal := env.Express(ts[1])
@@ -235,6 +272,46 @@ func Evaluate(program [][]string, env *Env) {
 				}
 			} else if cmd == "els" {
 				advancePcUntil(program, env, "fin")
+			} else if cmd == "for" {
+				varName := ts[1]
+				rangeVal := env.Express(ts[2])
+				val, loopExists := env.loops[varName]
+				if !loopExists || val.pc != env.Pc {
+					var rangeList []*Value
+					if rangeVal.Type == ValueTypeInt {
+						rangeInt, _ := strconv.Atoi(rangeVal.Val)
+						rangeList = make([]*Value, rangeInt)
+						for i := range rangeList {
+							rangeList[i] = NewValue(i)
+						}
+					} else if rangeVal.Type == ValueTypeList {
+						rangeList = rangeVal.ListPtr.ToValueArray()
+					} else if rangeVal.Type == ValueTypeStr {
+						charArr := strings.Split(rangeVal.Val, "")
+						for _, char := range charArr {
+							rangeList = append(rangeList, NewValue(char))
+						}
+					} else if rangeVal.Type == ValueTypeMap {
+						rangeList = rangeVal.MapPtr.GetKeys().ToValueArray()
+					}
+
+					env.loops[varName] = &loopDetail{
+						items: rangeList,
+						pc:    env.Pc, // to prevent the same var names
+						index: 0,
+					}
+				}
+
+				loopState := env.loops[varName]
+				if loopState.index >= len(loopState.items) {
+					delete(env.loops, varName)
+					advancetoLoopEnd(program, env)
+				} else {
+					env.AssignVar(varName, loopState.items[loopState.index])
+					loopState.index++
+				}
+			} else if cmd == "nxt" {
+				backPcToLoopHead(program, env)
 				// FUNC
 			} else if cmd == "def" {
 				advancePcUntil(program, env, "end")

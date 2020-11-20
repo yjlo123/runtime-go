@@ -189,6 +189,19 @@ func (list List) String() string {
 	return str
 }
 
+// ToValueArray ..
+func (list *List) ToValueArray() []*Value {
+	var arr []*Value
+	head := list.Head
+	if head != nil {
+		for head != nil {
+			arr = append(arr, head.Data)
+			head = head.Next
+		}
+	}
+	return arr
+}
+
 // ConstructList ..
 func ConstructList(nums []interface{}) *List {
 	node := &ListNode{}

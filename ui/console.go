@@ -221,7 +221,8 @@ func showHistory(con *console, historyIdx int) {
 }
 
 func runProgram(con *console, app fyne.App) {
-	dat, err := ioutil.ReadFile("./src/program.runtime")
+	//dat, err := ioutil.ReadFile("./src/program.runtime")
+	dat, err := ioutil.ReadFile("../examples/for.runtime")
 	if err != nil {
 		fmt.Println(err)
 	}
