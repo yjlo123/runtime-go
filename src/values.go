@@ -123,8 +123,24 @@ type ListNode struct {
 
 // List ..
 type List struct {
-	Head *ListNode
-	Tail *ListNode
+	Head    *ListNode
+	Tail    *ListNode
+	Length  int
+	HeadIdx int
+	IdxMap  map[int]*ListNode
+}
+
+// Len returns the length of the list
+func (list *List) Len() *Value {
+	return NewValue(list.Length)
+}
+
+// Index ..
+func (list *List) Index(idx int) *Value {
+	if idx < 0 || idx >= list.Length {
+		return NewValue(nil)
+	}
+	return list.IdxMap[list.HeadIdx+idx].Data
 }
 
 // Poll extrats an element from the left side of the list
@@ -136,10 +152,14 @@ func (list *List) Poll() *Value {
 	if list.Head.Next == nil {
 		list.Tail = nil
 		list.Head = nil
+		list.Length = 0
 	} else {
 		list.Head.Next.Prev = nil
 		list.Head = list.Head.Next
+		list.Length--
 	}
+	delete(list.IdxMap, list.HeadIdx)
+	list.HeadIdx++
 	return data
 }
 
@@ -152,10 +172,13 @@ func (list *List) Pop() *Value {
 	if list.Tail.Prev == nil {
 		list.Tail = nil
 		list.Head = nil
+		list.Length = 0
 	} else {
 		list.Tail.Prev.Next = nil
 		list.Tail = list.Tail.Prev
+		list.Length--
 	}
+	delete(list.IdxMap, list.HeadIdx+list.Length)
 	return data
 }
 
@@ -166,11 +189,15 @@ func (list *List) Push(val *Value) {
 	if list.Head == nil {
 		list.Tail = newNode
 		list.Head = newNode
+		list.Length = 1
+		list.IdxMap = make(map[int]*ListNode)
 	} else {
 		newNode.Prev = list.Tail
 		list.Tail.Next = newNode
 		list.Tail = newNode
+		list.Length++
 	}
+	list.IdxMap[list.HeadIdx+list.Length-1] = newNode
 }
 
 func (list List) String() string {
@@ -216,7 +243,11 @@ func ConstructList(nums []interface{}) *List {
 		newNode.Prev = node
 		node = node.Next
 	}
-	return &List{head, node}
+	return &List{
+		Head:   head,
+		Tail:   node,
+		Length: len(nums),
+	}
 }
 
 // Map ..

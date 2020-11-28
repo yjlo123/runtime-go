@@ -3,11 +3,23 @@ psh $list 8
 psh $list 'hello'
 psh $list 5
 psh $list 6
+prt $list
+get $list 2 v
+prt $v
+
 pop $list a
 add a $a 10
 prt $a
+
+get $list 2 v
+prt $v
+
 pol $list a
 prt $a
+
+get $list 0 v
+prt $v
+
 pol $list a
 prt $a
 prt $list

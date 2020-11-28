@@ -76,7 +76,7 @@ func advancetoLoopEnd(program [][]string, env *Env) {
 }
 
 // Evaluate ..
-func Evaluate(program [][]string, env *Env) {
+func Evaluate(program [][]string, env *Env) *Env {
 	//pc := 0
 	rand.Seed(time.Now().UnixNano())
 	for {
@@ -197,25 +197,32 @@ func Evaluate(program [][]string, env *Env) {
 				env.AssignVar(ts[2], val)
 				// MAP
 			} else if cmd == "get" || cmd == "put" || cmd == "del" {
-				m := env.Express(ts[1]).GetValue().(*Map)
+				ds := env.Express(ts[1])
 				keyValue := env.Express(ts[2])
-				key := ""
-				if keyValue.Type == ValueTypeStr {
-					key = keyValue.GetValue().(string)
-				} else if keyValue.Type == ValueTypeInt {
-					key = strconv.Itoa(keyValue.GetValue().(int))
-				} else {
-					panic(fmt.Sprintf("%s: Invalid key data type", cmd))
-				}
+				if ds.Type == ValueTypeMap {
+					m := ds.GetValue().(*Map)
+					key := ""
+					if keyValue.Type == ValueTypeStr {
+						key = keyValue.GetValue().(string)
+					} else if keyValue.Type == ValueTypeInt {
+						key = strconv.Itoa(keyValue.GetValue().(int))
+					} else {
+						panic(fmt.Sprintf("%s: Invalid key data type", cmd))
+					}
 
-				if cmd == "get" {
-					val := m.Get(key)
-					env.AssignVar(ts[3], val)
-				} else if cmd == "put" {
-					val := env.Express(ts[3])
-					m.Put(key, val)
-				} else if cmd == "del" {
-					m.Delete(key)
+					if cmd == "get" {
+						val := m.Get(key)
+						env.AssignVar(ts[3], val)
+					} else if cmd == "put" {
+						val := env.Express(ts[3])
+						m.Put(key, val)
+					} else if cmd == "del" {
+						m.Delete(key)
+					}
+				} else if ds.Type == ValueTypeList {
+					l := ds.GetValue().(*List)
+					idx := keyValue.GetValue().(int)
+					env.AssignVar(ts[3], l.Index(idx))
 				}
 			} else if cmd == "key" {
 				m := env.Express(ts[1]).GetValue().(*Map)
@@ -382,4 +389,5 @@ func Evaluate(program [][]string, env *Env) {
 		}
 		env.AdvancePc()
 	}
+	return env
 }
