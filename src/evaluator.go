@@ -200,6 +200,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 				ds := env.Express(ts[1])
 				keyValue := env.Express(ts[2])
 				if ds.Type == ValueTypeMap {
+					// map
 					m := ds.GetValue().(*Map)
 					key := ""
 					if keyValue.Type == ValueTypeStr {
@@ -211,22 +212,33 @@ func Evaluate(program [][]string, env *Env) *Env {
 					}
 
 					if cmd == "get" {
-						val := m.Get(key)
-						env.AssignVar(ts[3], val)
+						env.AssignVar(ts[3], m.Get(key))
 					} else if cmd == "put" {
-						val := env.Express(ts[3])
-						m.Put(key, val)
+						m.Put(key, env.Express(ts[3]))
 					} else if cmd == "del" {
 						m.Delete(key)
 					}
 				} else if ds.Type == ValueTypeList {
+					// list
 					l := ds.GetValue().(*List)
 					idx := keyValue.GetValue().(int)
-					env.AssignVar(ts[3], l.Index(idx))
+					if cmd == "get" {
+						env.AssignVar(ts[3], l.GetByIndex(idx))
+					} else if cmd == "put" {
+						l.SetByIndex(idx, env.Express(ts[3]))
+					}
 				}
 			} else if cmd == "key" {
 				m := env.Express(ts[1]).GetValue().(*Map)
 				env.AssignVar(ts[2], NewValue(m.GetKeys()))
+			} else if cmd == "len" {
+				ds := env.Express(ts[1])
+				if ds.Type == ValueTypeList {
+					l := ds.GetValue().(*List)
+					env.AssignVar(ts[2], l.Len())
+				} else if ds.Type == ValueTypeStr {
+					env.AssignVar(ts[2], NewValue(len(ds.GetValue().(string))))
+				}
 				// JUMP
 			} else if cmd == "jmp" {
 				env.GotoLabelByName(ts[1])
@@ -384,6 +396,18 @@ func Evaluate(program [][]string, env *Env) *Env {
 				err := ioutil.WriteFile(fileName, data, 0644)
 				if err != nil {
 					fmt.Println(err)
+				}
+			} else if cmd == "test_init" {
+				env.AssignVar("test_pass", NewValue(0))
+				env.AssignVar("test_fail", NewValue(0))
+			} else if cmd == "test_assert" {
+				val := env.Express(ts[1])
+				expect := env.Express(ts[2])
+				if !val.Equals(expect) {
+					env.AssignVar("test_fail", NewValue(env.Express("$test_fail").GetValue().(int)+1))
+					fmt.Printf("Test failed. Line:%d, expected:%s, got:%s\n", env.Pc+1, expect, val)
+				} else {
+					env.AssignVar("test_pass", NewValue(env.Express("$test_pass").GetValue().(int)+1))
 				}
 			}
 		}

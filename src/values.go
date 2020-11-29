@@ -135,12 +135,37 @@ func (list *List) Len() *Value {
 	return NewValue(list.Length)
 }
 
-// Index ..
-func (list *List) Index(idx int) *Value {
+// GetByIndex ..
+func (list *List) GetByIndex(idx int) *Value {
 	if idx < 0 || idx >= list.Length {
 		return NewValue(nil)
 	}
 	return list.IdxMap[list.HeadIdx+idx].Data
+}
+
+// SetByIndex ..
+func (list *List) SetByIndex(idx int, val *Value) {
+	if idx < 0 {
+		return
+	}
+	if idx >= list.Length {
+		for idx > list.Length {
+			list.Push(NewValue(nil))
+		}
+		list.Push(val)
+		return
+	}
+	target := list.IdxMap[idx]
+	newNode := &ListNode{}
+	newNode.Data = val
+	if target.Prev != nil {
+		newNode.Prev = target.Prev
+		target.Prev.Next = newNode
+	}
+	newNode.Next = target.Next
+	if target.Next != nil {
+		target.Next.Prev = newNode
+	}
 }
 
 // Poll extrats an element from the left side of the list
