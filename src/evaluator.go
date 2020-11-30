@@ -75,6 +75,27 @@ func advancetoLoopEnd(program [][]string, env *Env) {
 	}
 }
 
+// ParseJSON ..
+func ParseJSON(str string) *Value {
+	if len(str) == 0 {
+		return NewValue(nil)
+	}
+
+	if str[0] == '[' {
+		list := &List{}
+		content := str[1 : len(str)-1]
+		vals := strings.Split(content, ",")
+		for _, v := range vals {
+			i, _ := strconv.Atoi(v)
+			list.Push(NewValue(i))
+		}
+		result := NewValue(list)
+		return result
+	}
+
+	return NewValue(nil)
+}
+
 // Evaluate ..
 func Evaluate(program [][]string, env *Env) *Env {
 	//pc := 0
@@ -192,7 +213,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 
 				default:
 					fmt.Println(env.GetFrame().Vars)
-					panic(fmt.Sprintf("pol invalid data type: %s %s", ts, listVal.Type))
+					panic(fmt.Sprintf("%s invalid data type: %s %s", cmd, ts, listVal.Type))
 				}
 				env.AssignVar(ts[2], val)
 				// MAP
@@ -362,6 +383,9 @@ func Evaluate(program [][]string, env *Env) *Env {
 					frame := env.PopFrame()
 					env.Pc = frame.Pc
 				}
+			} else if cmd == "prs" {
+				jsonStr := env.Express((ts[2]))
+				env.AssignVar(ts[1], ParseJSON(jsonStr.GetValue().(string)))
 			} else if cmd == "lod" {
 				fileName := env.Express(ts[1]).GetValue().(string)
 				fileData, err := ioutil.ReadFile(fileName)
