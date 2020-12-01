@@ -9,9 +9,8 @@ Usage:
 $ runtime <file_path>
 ```
 
-Commands NOT supported yet:  
+Commands NOT supported:  
 ```
-prs
 clr
 drw
 pxl
