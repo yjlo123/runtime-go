@@ -1,0 +1,31 @@
+let dot 0
+
+#begin
+for i 10
+ prt ''
+nxt
+
+prt '            Runtime Script             '
+prt ''
+
+let line '              '
+for i 5
+ ife $dot $i
+  add line $line '  '
+ els
+  add line $line '. '
+ fin
+nxt
+add line $line '               '
+prt $line
+
+for i 10
+ prt ''
+nxt
+slp 100
+add dot $dot 1
+mod dot $dot 6
+ife $dot 0
+ slp 1000
+fin
+jmp begin

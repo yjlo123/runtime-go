@@ -15,22 +15,20 @@ import (
 )
 
 const (
-	screenInsetX = 92
-	screenInsetY = 72
+	// 800*600 inset 92, 72
+	screenInsetX = 2
+	screenInsetY = 2
 
-	screenLines = 24
-	screenCols  = 38
+	screenLines = 25
+	screenCols  = 39
 
 	cursorChar = "_"
 	maxHistory = 10
 )
 
 var (
-	screenSize = fyne.Size{Width: 800, Height: 600}
+	screenSize = fyne.Size{Width: 640, Height: 480}
 	lineDelay  = time.Second * 0 //time.Second / 10
-
-	// Icon ..
-	Icon = icon
 )
 
 type console struct {
@@ -51,7 +49,9 @@ func (con *console) MinSize(_ []fyne.CanvasObject) fyne.Size {
 }
 
 func (con *console) Layout(_ []fyne.CanvasObject, size fyne.Size) {
-	con.overlay.Resize(size)
+	if con.overlay != nil {
+		con.overlay.Resize(size)
+	}
 
 	y := screenInsetY
 	for i := 0; i < screenLines; i++ {
@@ -61,19 +61,25 @@ func (con *console) Layout(_ []fyne.CanvasObject, size fyne.Size) {
 	}
 }
 
-func (con *console) loadUI() fyne.CanvasObject {
+func (con *console) loadUI(textColor []uint8) fyne.CanvasObject {
 	con.content = make([]fyne.CanvasObject, screenLines)
+	colorFunc := color.RGBA{0xbb, 0xbb, 0xbb, 0xff}
+	if textColor != nil {
+		colorFunc = color.RGBA{textColor[0], textColor[1], textColor[2], textColor[3]}
+	}
 
 	for i := 0; i < screenLines; i++ {
-		con.content[i] = canvas.NewText("", color.RGBA{0xbb, 0xbb, 0xbb, 0xff})
+		con.content[i] = canvas.NewText("", colorFunc)
 		con.content[i].(*canvas.Text).TextSize = 15
 		con.content[i].(*canvas.Text).TextStyle.Monospace = true
 	}
 
 	con.input = make(chan string)
 
-	con.overlay = canvas.NewImageFromResource(monitor)
-	return fyne.NewContainerWithLayout(con, append(con.content, con.overlay)...)
+	//con.overlay = canvas.NewImageFromResource(monitor)
+	//con.overlay = canvas.NewImageFromFile("../resource/monitor.png")
+	//return fyne.NewContainerWithLayout(con, append(con.content, con.overlay)...)
+	return fyne.NewContainerWithLayout(con, con.content...)
 }
 
 func (con *console) appendLine(line string) {
@@ -220,9 +226,8 @@ func showHistory(con *console, historyIdx int) {
 	canvas.Refresh(line)
 }
 
-func runProgram(con *console, app fyne.App) {
-	//dat, err := ioutil.ReadFile("./src/program.runtime")
-	dat, err := ioutil.ReadFile("../examples/for.runtime")
+func runProgram(con *console, app fyne.App, filePath string) {
+	dat, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -270,13 +275,13 @@ func runProgram(con *console, app fyne.App) {
 	app.Quit()
 }
 
-// Show starts a new console computer simulator
-func Show(app fyne.App) {
+// ShowConsole ...
+func ShowConsole(app fyne.App, title, filePath string, textColor []uint8) {
 	con := console{}
 	app.Settings().SetTheme(&beebTheme{})
 
-	window := app.NewWindow("Runtime Script")
-	window.SetContent(con.loadUI())
+	window := app.NewWindow(title)
+	window.SetContent(con.loadUI(textColor))
 	window.SetPadded(false)
 	window.SetFixedSize(true)
 	window.Resize(screenSize)
@@ -294,5 +299,5 @@ func Show(app fyne.App) {
 
 	go con.blink()
 	window.Show()
-	go runProgram(&con, app)
+	go runProgram(&con, app, filePath)
 }

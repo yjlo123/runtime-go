@@ -142,7 +142,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 			} else if cmd == "typ" {
 				val := env.Express(ts[2])
 				env.AssignVar(ts[1], NewValue(val.Type))
-			} else if cmd == "add" || cmd == "sub" || cmd == "mul" || cmd == "div" {
+			} else if cmd == "add" || cmd == "sub" || cmd == "mul" || cmd == "div" || cmd == "mod" {
 				val1 := env.Express(ts[2])
 				val2 := env.Express(ts[3])
 				var res *Value
