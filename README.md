@@ -18,3 +18,6 @@ pxl
 
 ## VM
 <img src="https://github.com/yjlo123/runtime-go/blob/main/screenshot_vm.png">
+
+## Download
+[Latest Release](https://github.com/yjlo123/runtime-go/releases/latest)
