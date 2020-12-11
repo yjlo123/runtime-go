@@ -1,10 +1,6 @@
 let dot 0
 
 #begin
-for i 10
- prt ''
-nxt
-
 prt '            Runtime Script             '
 prt ''
 
@@ -19,7 +15,7 @@ nxt
 add line $line '               '
 prt $line
 
-for i 10
+for i 11
  prt ''
 nxt
 slp 100
