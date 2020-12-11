@@ -1,10 +1,10 @@
-# runtime-go
-Runtime Script written in Golang
+# Runtime Go
+The Runtime Script programming language written in Golang
 
 Learn more about Runtime Script:  
 https://github.com/yjlo123/runtime-script
 
-Usage:  
+## Usage  
 ```shell
 $ runtime <file_path>
 ```
@@ -15,3 +15,6 @@ clr
 drw
 pxl
 ```
+
+## VM
+<img src="https://github.com/yjlo123/runtime-go/blob/main/screenshot_vm.png">
