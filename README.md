@@ -16,6 +16,16 @@ drw
 pxl
 ```
 
+## Build
+### Packaging GUI
+https://developer.fyne.io/started/packaging  
+```
+cd ui
+go build .
+fyne package -os windows -icon icon.png -executable ui.exe
+fyne package -os darwin -icon icon.png -executable ui
+```
+
 ## VM
 <img src="https://github.com/yjlo123/runtime-go/blob/main/screenshot_vm.png">
 
