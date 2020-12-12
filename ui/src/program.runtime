@@ -1,10 +1,12 @@
+mul left_padding ' ' 12
 let dot 0
 
 #begin
-prt '            Runtime Script             '
+prt $left_padding ''
+prt 'Runtime Script'
 prt ''
 
-let line '              '
+let line '  '
 for i 5
  ife $dot $i
   add line $line '  '
@@ -12,7 +14,7 @@ for i 5
   add line $line '. '
  fin
 nxt
-add line $line '               '
+prt $left_padding ''
 prt $line
 
 for i 11

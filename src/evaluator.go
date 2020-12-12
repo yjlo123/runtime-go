@@ -148,25 +148,43 @@ func Evaluate(program [][]string, env *Env) *Env {
 				var res *Value
 				if cmd == "add" {
 					if val1.Type == ValueTypeInt && val2.Type == ValueTypeInt {
-						// int + int
+						// int + int => int
 						res = NewValue(val1.GetValue().(int) + val2.GetValue().(int))
 					} else if val1.Type == ValueTypeStr && val2.Type == ValueTypeStr {
-						// str + str
+						// str + str => int
 						res = NewValue(val1.GetValue().(string) + val2.GetValue().(string))
 					} else if val1.Type == ValueTypeStr && val2.Type == ValueTypeInt {
-						// str + int
+						// str + int => str
 						res = NewValue(val1.GetValue().(string) + strconv.Itoa(val2.GetValue().(int)))
 					} else if val1.Type == ValueTypeInt && val2.Type == ValueTypeStr {
-						// int + str
+						// int + str => str
 						res = NewValue(strconv.Itoa(val1.GetValue().(int)) + val2.GetValue().(string))
+					} else if val1.Type == ValueTypeNil && val2.Type == ValueTypeStr {
+						// nil + int => str
+						res = NewValue(string(val1.GetValue().(int)))
 					} else {
-						fmt.Println(ts)
 						panic(fmt.Sprintf("add unsupported data type: %s, %s\n", val1.Type, val2.Type))
 					}
 				} else if cmd == "sub" {
-					res = NewValue(val1.GetValue().(int) - val2.GetValue().(int))
+					if val1.Type == ValueTypeInt && val2.Type == ValueTypeInt {
+						// int - int => int
+						res = NewValue(val1.GetValue().(int) - val2.GetValue().(int))
+					} else if val1.Type == ValueTypeStr && val2.Type == ValueTypeNil {
+						// str - nil => int
+						res = NewValue(int(val2.GetValue().(string)[0]))
+					} else {
+						panic(fmt.Sprintf("sub unsupported data type: %s, %s\n", val1.Type, val2.Type))
+					}
 				} else if cmd == "mul" {
-					res = NewValue(val1.GetValue().(int) * val2.GetValue().(int))
+					if val1.Type == ValueTypeInt && val2.Type == ValueTypeInt {
+						// int * int => int
+						res = NewValue(val1.GetValue().(int) * val2.GetValue().(int))
+					} else if val1.Type == ValueTypeStr && val2.Type == ValueTypeInt {
+						// str * int => str
+						res = NewValue(strings.Repeat(val1.GetValue().(string), val2.GetValue().(int)))
+					} else {
+						panic(fmt.Sprintf("mul unsupported data type: %s, %s\n", val1.Type, val2.Type))
+					}
 				} else if cmd == "div" {
 					res = NewValue(val1.GetValue().(int) / val2.GetValue().(int))
 				} else if cmd == "mod" {
@@ -205,7 +223,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 							val = NewValue(str[0:1])
 						} else {
 							listVal.Val = str[0 : len(str)-1]
-							val = NewValue(str[len(str)-1 : len(str)])
+							val = NewValue(str[len(str)-1:])
 						}
 					} else {
 						val = NewValue("")
