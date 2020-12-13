@@ -1,0 +1,117 @@
+prt 'Moon OS   v0.1'
+prt 'Copyright (c) 1982 RunTech, Inc.'
+prt 'All rights reserved.'
+prt ''
+prt 'Welcome'
+
+let root {}
+let path_home {}
+put $root 'home' $path_home
+let path_programs {}
+put $root 'programs' $path_home
+
+let path []
+psh $path 'home'
+
+def get_path
+ let _path '/'
+ for _d $path
+  add _path $_path $_d
+  add _path $_path '/'
+ nxt
+ ret $_path
+end
+
+def get_current_dir
+ let _curr_path $root
+ for _d $path
+  get $_curr_path $_d _curr_path
+ nxt
+ ret $_curr_path
+end
+
+def parse_input
+ let _input $0
+ let _tokens []
+ #next_token
+ let _token ''
+ #parse_token
+ pol $_input _c
+ jeq $_c '' parse_done
+ jeq $_c ' ' token_done
+ jeq $_c '\'' parse_string
+ jeq $_c '"' parse_string
+ jmp add_token_char
+ 
+ #parse_string
+ let _q $_c
+ let _s ''
+ #parse_string_char
+ pol $_input _c
+ ife $_c $_q
+  psh $_tokens $_s
+  jmp next_token
+ els
+  psh $_s $_c
+  jmp parse_string_char
+ fin
+ 
+ #add_token_char
+ add _token $_token $_c
+ jmp parse_token
+ #token_done
+ ife $_token ''
+  jmp next_token
+ els
+  psh $_tokens $_token
+ fin
+ jmp next_token
+ #parse_done
+ ife $_token ''
+  ret
+ fin
+ psh $_tokens $_token
+ ret $_tokens
+end
+
+#repl_loop
+prt '>' ''
+inp in
+cal parse_input $in
+let tokens $ret
+pol $tokens cmd
+
+jeq $cmd 'exit' exit
+ife $cmd 'pwd'
+ cal get_path
+ prt $ret
+ jmp repl_loop
+fin
+ife $cmd 'ls'
+ cal get_current_dir
+ key $ret files
+ prt $files
+ jmp repl_loop
+fin
+ife $cmd 'cd'
+ pol $tokens d
+ ife $d '..'
+  pop $path _
+ els
+  cal get_current_dir
+  get $ret $d dr
+  ife $dr $nil
+   prt 'ERR Path not found'
+   jmp repl_loop
+  fin
+  psh $path $d
+ fin
+ jmp repl_loop
+fin
+
+add err_msg 'Unknown command: ' $in
+prt $err_msg
+jmp repl_loop
+
+#exit
+prt 'Shutting down...'
