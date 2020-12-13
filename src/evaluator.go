@@ -15,6 +15,26 @@ func advancePcUntil(program [][]string, env *Env, cmd string) {
 	}
 }
 
+func advancePcToIfEnd(program [][]string, env *Env) {
+	nestedIfCount := 0
+	for env.Pc <= len(program) {
+		if len(program[env.Pc]) < 1 {
+			env.AdvancePc()
+			continue
+		}
+		currentCmd := program[env.Pc][0]
+		if currentCmd == "ife" || currentCmd == "ifg" {
+			nestedIfCount++
+		} else if currentCmd == "fin" {
+			if nestedIfCount == 0 {
+				return
+			}
+			nestedIfCount--
+		}
+		env.AdvancePc()
+	}
+}
+
 func advancePcToIfFalse(program [][]string, env *Env) {
 	env.AdvancePc() // first ife or ifg
 	nestedIfCount := 0
@@ -329,7 +349,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 					advancePcToIfFalse(program, env)
 				}
 			} else if cmd == "els" {
-				advancePcUntil(program, env, "fin")
+				advancePcToIfEnd(program, env)
 			} else if cmd == "for" {
 				varName := ts[1]
 				rangeVal := env.Express(ts[2])
