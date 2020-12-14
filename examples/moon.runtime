@@ -1,4 +1,4 @@
-prt 'Moon OS   v0.1'
+prt 'Moon OS  v1.0'
 prt 'Copyright (c) 1982 RunTech, Inc.'
 prt 'All rights reserved.'
 prt ''
@@ -6,9 +6,25 @@ prt 'Welcome'
 
 let root {}
 let path_home {}
+
+let notes ''
+psh $notes '----------- Moon OS Manual ------------\n'
+psh $notes 'ls -- list directory contents\n'
+psh $notes 'pwd -- return working directory name\n'
+psh $notes 'cd <d> -- change directory\n'
+psh $notes 'mkdir <d> -- make a directory\n'
+psh $notes 'cat <f> -- concatenate and print a file\n'
+psh $notes 'rm <f/d> -- remove a directory entry\n'
+psh $notes 'echo <s> -- output an argument\n'
+psh $notes '  ~ > <f> -- write to a file\n'
+psh $notes '  ~ >> <f> -- append to a file\n'
+psh $notes 'exit -- shut down system\n'
+psh $notes '---------------------------------------\n'
+
+put $path_home 'note.txt' $notes
 put $root 'home' $path_home
 let path_programs {}
-put $root 'programs' $path_home
+put $root 'programs' $path_programs
 
 let path []
 psh $path 'home'
@@ -68,7 +84,7 @@ def parse_input
  jmp next_token
  #parse_done
  ife $_token ''
-  ret
+  ret $_tokens
  fin
  psh $_tokens $_token
  ret $_tokens
@@ -82,34 +98,155 @@ let tokens $ret
 pol $tokens cmd
 
 jeq $cmd 'exit' exit
+/ -- PWD --
 ife $cmd 'pwd'
  cal get_path
  prt $ret
  jmp repl_loop
 fin
+/ -- LS --
 ife $cmd 'ls'
  cal get_current_dir
  key $ret files
- prt $files
+ for f $files
+  prt $f
+ nxt
  jmp repl_loop
 fin
+/ -- CD --
 ife $cmd 'cd'
  pol $tokens d
+ ife $d $nil
+  prt 'ERR invalid directory name'
+  jmp repl_loop
+ fin
  ife $d '..'
   pop $path _
  els
   cal get_current_dir
   get $ret $d dr
   ife $dr $nil
-   prt 'ERR Path not found'
+   prt 'ERR Directory not found'
    jmp repl_loop
   fin
-  psh $path $d
+  typ dr_typ $dr
+  ife $dr_typ 'map'
+   psh $path $d
+   jmp repl_loop
+  els
+   prt 'ERR Not a directory'
+  fin
+ fin
+ jmp repl_loop
+fin
+/ -- MKDIR --
+ife $cmd 'mkdir'
+ pol $tokens d
+ ife $d $nil
+  prt 'ERR invalid directory name'
+  jmp repl_loop
+ fin
+ cal get_current_dir
+ let curr_dir $ret
+ get $curr_dir $d dr
+ ife $dr $nil
+  put $curr_dir $d {}
+ els
+  prt 'ERR Directory/file exists'
+ fin
+ jmp repl_loop
+fin
+/ -- CAT --
+ife $cmd 'cat'
+ pol $tokens d
+ ife $d $nil
+  prt 'ERR invalid file name'
+  jmp repl_loop
+ fin
+ cal get_current_dir
+ let curr_dir $ret
+ get $curr_dir $d dr
+ ife $dr $nil
+  prt 'ERR File not found'
+ els
+  prt $dr
+ fin
+ jmp repl_loop
+fin
+/ -- RM --
+ife $cmd 'rm'
+ pol $tokens d
+ ife $d $nil
+  prt 'ERR invalid file/directory name'
+  jmp repl_loop
+ fin
+ cal get_current_dir
+ let curr_dir $ret
+ get $curr_dir $d dr
+ ife $dr $nil
+  prt 'ERR File/directory not found'
+ els
+  del $curr_dir $d
+ fin
+ jmp repl_loop
+fin
+/ -- ECHO --
+ife $cmd 'echo'
+ pol $tokens s
+ ife $s $nil
+  let s ''
+ fin
+ pol $tokens p
+ ife $p $nil
+  prt $s
+ fin
+ ife $p '>'
+  / write to file
+  pol $tokens f
+  ife $f $nil
+   prt 'ERR Parse error'
+  els
+   cal get_current_dir
+   let curr_dir $ret
+   get $curr_dir $f fd
+   ife $fd $nil
+    put $curr_dir $f $s
+   els
+    prt 'File/directory exists, overwrite? Y/n'
+    inp ans
+    jeq $ans 'y' overwrite
+    jeq $ans 'Y' overwrite
+    jeq $ans '' overwrite
+    jmp skip_ow
+    #overwrite
+    put $curr_dir $f $s
+    #skip_ow
+   fin
+  fin
+ fin
+ ife $p '>>'
+  / append to file
+  pol $tokens f
+  ife $f $nil
+   prt 'ERR Parse error'
+   jmp repl_loop
+  els
+   cal get_current_dir
+   let curr_dir $ret
+   get $curr_dir $f fc
+   ife $fc $nil
+    put $curr_dir $f $s
+   els
+    add fc $fc '\n'
+    add fc $fc $s
+    put $curr_dir $f $fc
+   fin
+  fin
  fin
  jmp repl_loop
 fin
 
-add err_msg 'Unknown command: ' $in
+add err_msg 'Unknown command: ' $cmd
 prt $err_msg
 jmp repl_loop
 
