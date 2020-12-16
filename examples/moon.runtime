@@ -306,8 +306,20 @@ fin
 / -- LS --
 ife $cmd 'ls'
  cal get_current_dir
- key $ret files
+ let dir $ret
+ key $dir files
  for f $files
+  get $dir $f fc 
+  typ ft $fc
+  ife $ft 'str'
+   prt '<TXT> ' ''
+  fin
+  ife $ft 'list'
+   prt '<EXE> ' ''
+  fin
+  ife $ft 'map'
+   prt '<DIR> ' ''
+  fin
   prt $f
  nxt
  jmp repl_loop
