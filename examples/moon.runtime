@@ -4,6 +4,190 @@ prt 'All rights reserved.'
 prt ''
 prt 'Welcome'
 
+
+/ ************ Runtime ************
+
+/ ====== parsing ======
+def parse_line
+ let _line $0
+ let _tokens []
+ #next_token
+ let _token ''
+ #parse_token
+ pol $_line _c
+ jeq $_c '' parse_done
+ jeq $_c ' ' token_done
+ jeq $_c '\'' parse_string
+ jeq $_c '"' parse_string
+ jmp add_token_char
+ 
+ #parse_string
+ let _q $_c
+ let _s '\''
+
+ #parse_string_char
+ pol $_line _c
+ ife $_c $_q
+  psh $_s $_c
+  psh $_tokens $_s
+  jmp next_token
+ els
+  psh $_s $_c
+  jmp parse_string_char
+ fin
+ 
+ #add_token_char
+ add _token $_token $_c
+ jmp parse_token
+
+ #token_done
+ ife $_token ''
+  jmp next_token
+ els
+  psh $_tokens $_token
+ fin
+ jmp next_token
+ #parse_done
+ ife $_token ''
+  ret $_tokens
+ fin
+ psh $_tokens $_token
+ ret $_tokens
+end
+
+def parse
+ let _src $0
+ let _p $1  / map ref
+ let _lbl $2  / map ref
+ let _lc 0
+ for _line $_src
+  / check label
+  pol $_line _c1
+  ife $_c1 '#'
+   put $_lbl $_line $_lc
+  fin
+  add _line $_c1 $_line
+  cal parse_line $_line
+  put $_p $_lc $ret
+  add _lc $_lc 1
+ nxt
+ ret $_p
+end
+
+/ ====== evaluating ======
+def expr
+ let _expr $0
+ let _original $0
+ int _i $_expr
+ jeq $_i $nil continue
+ ret $_i
+ #continue
+ pol $_expr _c1
+ ife $_c1 '$'
+  get $env $_expr _val
+  ret $_val
+ fin
+ ife $_c1 '\''
+  pop $_expr _
+  ret $_expr
+ fin
+ ife $_c1 '['
+  ret []
+ fin
+ ret $_original
+end
+
+def eval_param
+ let _line $0
+ let _idx $1
+ get $_line $_idx _val
+ cal expr $_val
+ ret $ret
+end
+
+/ ** main eval **
+def runtime
+ let _src $0
+ let env {}
+ let _p {}
+ let _lbl {}
+ cal parse $_src $_p $_lbl
+ let _pc 0
+ 
+ #eval
+ get $_p $_pc _line
+ jeq $_line $nil eval_done
+ get $_line 0 _cmd
+ 
+ ife $_cmd 'clr'
+  clr
+ fin
+ ife $_cmd 'prt'
+  get $_line 1 _val
+  cal expr $_val
+  let _val $ret
+  prt $_val
+ fin
+ ife $_cmd 'let'
+  get $_line 1 _var
+  cal eval_param $_line 2
+  put $env $_var $ret
+ fin
+ jeq $_cmd 'add' do_arithmetic
+ jeq $_cmd 'sub' do_arithmetic
+ jeq $_cmd 'mul' do_arithmetic
+ jeq $_cmd 'div' do_arithmetic
+ jmp non_arithmetic
+  #do_arithmetic
+  get $_line 1 _var
+  cal eval_param $_line 2
+  let _val1 $ret
+  cal eval_param $_line 3
+  let _val2 $ret
+  ife $_cmd 'add'
+   add _res $_val1 $_val2
+  fin
+  ife $_cmd 'sub'
+   sub _res $_val1 $_val2
+  fin
+  ife $_cmd 'mul'
+   mul _res $_val1 $_val2
+  fin
+  ife $_cmd 'div'
+   div _res $_val1 $_val2
+  fin
+  put $env $_var $_res
+ #non_arithmetic
+ ife $_cmd 'slp'
+  cal eval_param $_line 1
+  slp $ret
+ fin
+ ife $_cmd 'drw'
+  cal eval_param $_line 1
+  let _x $ret
+  cal eval_param $_line 2
+  let _y $ret
+  cal eval_param $_line 3
+  drw $_x $_y $ret
+ fin
+ ife $_cmd 'jne'
+  cal eval_param $_line 1
+  let _v1 $ret
+  cal eval_param $_line 2
+  let _v2 $ret
+  get $_line 3 _lbl_name
+  jeq $_v1 $_v2 jne_false
+  get $_lbl $_lbl_name _pc
+  #jne_false
+ fin
+ add _pc $_pc 1
+ jmp eval
+ 
+ #eval_done
+end
+
+/ **********************************
+
 let root {}
 let path_home {}
 
@@ -18,12 +202,18 @@ psh $notes 'rm <f/d> -- remove a directory entry\n'
 psh $notes 'echo <s> -- output an argument\n'
 psh $notes '  ~ > <f> -- write to a file\n'
 psh $notes '  ~ >> <f> -- append to a file\n'
+psh $notes 'run <f> -- run an executable file\n'
 psh $notes 'exit -- shut down system\n'
 psh $notes '---------------------------------------\n'
-
 put $path_home 'note.txt' $notes
 put $root 'home' $path_home
+
 let path_programs {}
+let hellop []
+psh $hellop 'prt \'Hello!\''
+psh $hellop 'slp 500'
+psh $hellop 'prt \'Bye~\''
+put $path_programs 'hello.exe' $hellop
 put $root 'programs' $path_programs
 
 let path []
@@ -88,6 +278,15 @@ def parse_input
  fin
  psh $_tokens $_token
  ret $_tokens
+end
+
+def check_executable
+ let _file $0
+ typ file_type $_file
+ ife $file_type 'list'
+  ret 1
+ fin
+ ret 0
 end
 
 #repl_loop
@@ -173,6 +372,28 @@ ife $cmd 'cat'
  fin
  jmp repl_loop
 fin
+/ -- RUN --
+ife $cmd 'run'
+ pol $tokens d
+ ife $d $nil
+  prt 'ERR invalid file name'
+  jmp repl_loop
+ fin
+ cal get_current_dir
+ let curr_dir $ret
+ get $curr_dir $d dr
+ ife $dr $nil
+  prt 'ERR File not found'
+ els
+  cal check_executable $dr
+  ife $ret 1
+   cal runtime $dr
+  els
+   prt 'ERR File not executable'
+  fin
+ fin
+ jmp repl_loop
+fin
 / -- RM --
 ife $cmd 'rm'
  pol $tokens d
@@ -237,15 +458,22 @@ ife $cmd 'echo'
    ife $fc $nil
     put $curr_dir $f $s
    els
-    add fc $fc '\n'
-    add fc $fc $s
-    put $curr_dir $f $fc
+    cal check_executable $fc
+    ife $ret 1
+     prt 'ERR Cannot write to an executable file'
+    els
+     add fc $fc '\n'
+     add fc $fc $s
+     put $curr_dir $f $fc
+    fin
    fin
   fin
  fin
  jmp repl_loop
 fin
-
+ife $cmd $nil
+ jmp repl_loop
+fin
 add err_msg 'Unknown command: ' $cmd
 prt $err_msg
 jmp repl_loop

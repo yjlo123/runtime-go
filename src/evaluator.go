@@ -64,15 +64,17 @@ func backPcToLoopHead(program [][]string, env *Env) {
 	forStack := 0
 	env.Pc--
 	for env.Pc > 0 {
-		currentCmd := program[env.Pc][0]
-		if currentCmd == "for" {
-			if forStack == 0 {
-				env.Pc--
-				return
+		if len(program[env.Pc]) > 0 {
+			currentCmd := program[env.Pc][0]
+			if currentCmd == "for" {
+				if forStack == 0 {
+					env.Pc--
+					return
+				}
+				forStack--
+			} else if currentCmd == "nxt" {
+				forStack++
 			}
-			forStack--
-		} else if currentCmd == "nxt" {
-			forStack++
 		}
 		env.Pc--
 	}
@@ -82,14 +84,16 @@ func advancetoLoopEnd(program [][]string, env *Env) {
 	env.Pc++ // first 'for'
 	forStack := 0
 	for env.Pc <= len(program) {
-		currentCmd := program[env.Pc][0]
-		if currentCmd == "for" {
-			forStack++
-		} else if currentCmd == "nxt" {
-			if forStack == 0 {
-				return
+		if len(program[env.Pc]) > 0 {
+			currentCmd := program[env.Pc][0]
+			if currentCmd == "for" {
+				forStack++
+			} else if currentCmd == "nxt" {
+				if forStack == 0 {
+					return
+				}
+				forStack--
 			}
-			forStack--
 		}
 		env.Pc++
 	}
