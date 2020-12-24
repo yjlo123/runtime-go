@@ -431,14 +431,16 @@ func Evaluate(program [][]string, env *Env) *Env {
 			} else if cmd == "lod" {
 				fileName := env.Express(ts[1]).GetValue().(string)
 				fileData, err := ioutil.ReadFile(fileName)
-				if err != nil {
-					fmt.Println(err)
+				if err == nil {
+					data := string(fileData)
+					// replace newline characters for windows
+					data = strings.Replace(data, "\r\n", "\n", -1)
+					lines := strings.Split(data, "\n")
+					env.AssignVar(ts[2], deserialize(lines))
+				} else {
+					//fmt.Println(err)
+					env.AssignVar(ts[2], NewValue(nil))
 				}
-				data := string(fileData)
-				// replace newline characters for windows
-				data = strings.Replace(data, "\r\n", "\n", -1)
-				lines := strings.Split(data, "\n")
-				env.AssignVar(ts[2], deserialize(lines))
 			} else if cmd == "sav" {
 				fileName := env.Express(ts[1]).GetValue().(string)
 				dataContent := env.Express(ts[2])
