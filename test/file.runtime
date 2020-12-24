@@ -1,0 +1,34 @@
+test_init
+
+let file_name './data.txt'
+
+/let data '123'
+
+let data []
+psh $data 2 '45' '[' 87
+
+let lst []
+psh $lst 3 2 8 []
+psh $data $lst
+
+let map {}
+put $map 'ab' 12
+put $map 'cd' 'mn'
+let lst []
+psh $lst [] 34
+put $map 'lst' $lst
+psh $data $map
+
+psh $data 123
+
+sav $file_name $data
+
+lod $file_name buf
+prt $buf
+
+
+/ result
+prt '[pass] ' ''
+prt $test_pass
+prt '[fail] ' ''
+prt $test_fail

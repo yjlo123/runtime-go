@@ -24,6 +24,18 @@ type Value struct {
 
 func (val *Value) String() string {
 	if val.Type == ValueTypeList {
+		return fmt.Sprintf("%s", *val.ListPtr)
+	} else if val.Type == ValueTypeMap {
+		return fmt.Sprintf("%s", *val.MapPtr)
+	} else if val.Type == ValueTypeStr {
+		return fmt.Sprintf("'%s'", val.Val)
+	}
+	return fmt.Sprintf("%s", val.Val)
+}
+
+// StringWithType ...
+func (val *Value) StringWithType() string {
+	if val.Type == ValueTypeList {
 		return fmt.Sprintf("%s(%s)", *val.ListPtr, val.Type)
 	} else if val.Type == ValueTypeMap {
 		return fmt.Sprintf("%s(%s)", *val.MapPtr, val.Type)
@@ -230,7 +242,7 @@ func (list List) String() string {
 	head := list.Head
 	if head != nil {
 		for head != nil {
-			str += (head.Data.Val + ",")
+			str += (head.Data.String() + ",")
 			head = head.Next
 		}
 	}
@@ -281,7 +293,17 @@ type Map struct {
 }
 
 func (m Map) String() string {
-	return fmt.Sprintf("%s", m.Data)
+	var str string = "{"
+	for k, v := range m.Data {
+		str += fmt.Sprintf("%s:%v", k, v)
+		str += ","
+	}
+	if len(str) > 1 {
+		str = str[:len(str)-1]
+	}
+	str += "}"
+	return str
+	// return fmt.Sprintf("%s", m.Data)
 }
 
 // Put adds new values to the map

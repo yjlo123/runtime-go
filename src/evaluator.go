@@ -437,28 +437,12 @@ func Evaluate(program [][]string, env *Env) *Env {
 				data := string(fileData)
 				// replace newline characters for windows
 				data = strings.Replace(data, "\r\n", "\n", -1)
-				fmt.Println(data)
-				env.AssignVar(ts[2], NewValue(data))
+				lines := strings.Split(data, "\n")
+				env.AssignVar(ts[2], deserialize(lines))
 			} else if cmd == "sav" {
 				fileName := env.Express(ts[1]).GetValue().(string)
 				dataContent := env.Express(ts[2])
-				var data []byte
-				if dataContent.Type == ValueTypeStr {
-					data = []byte(dataContent.GetValue().(string))
-				} else if dataContent.Type == ValueTypeList {
-					list := dataContent.GetValue().(*List)
-					for {
-						line := list.Poll()
-						if line.GetValue() == nil {
-							break
-						}
-						if len(data) > 0 {
-							data = append(data, '\n')
-						}
-						data = append(data, []byte(line.GetValue().(string))...)
-					}
-				}
-
+				data := serialize(dataContent)
 				err := ioutil.WriteFile(fileName, data, 0644)
 				if err != nil {
 					fmt.Println(err)
@@ -480,4 +464,144 @@ func Evaluate(program [][]string, env *Env) *Env {
 		env.AdvancePc()
 	}
 	return env
+}
+
+func serialize(content *Value) []byte {
+	var data []byte
+	if content.Type == ValueTypeStr {
+		data = append(data, '\'')
+		strVal := strings.Replace(content.Val, "\n", "\\n", -1)
+		data = append(data, []byte(strVal)...)
+		data = append(data, '\'')
+	} else if content.Type == ValueTypeInt {
+		data = []byte(content.Val)
+	} else if content.Type == ValueTypeNil {
+		data = []byte("$nil")
+	} else if content.Type == ValueTypeList {
+		list := content.GetValue().(*List)
+		listLen := list.Len().GetValue().(int)
+		data = append(data, []byte("[\n")...)
+		for i := 0; i < listLen; i++ {
+			data = append(data, serialize(list.GetByIndex(i))...)
+		}
+		data = append(data, ']')
+	} else if content.Type == ValueTypeMap {
+		m := content.GetValue().(*Map)
+		keys := m.GetKeys()
+		keysLen := keys.Len().GetValue().(int)
+		data = append(data, []byte("{\n")...)
+		for i := 0; i < keysLen; i++ {
+			key := keys.GetByIndex(i).Val
+			data = append(data, []byte(key)...)
+			data = append(data, '\n')
+			data = append(data, serialize(m.Get(key))...)
+		}
+		data = append(data, '}')
+	}
+	data = append(data, '\n')
+	return []byte(data)
+}
+
+func deserialize(lines []string) *Value {
+	if len(lines) == 0 {
+		return NewValue(nil)
+	} else if len(lines) == 1 {
+		tempEnv := &Env{}
+		line := strings.Replace(lines[0], "\\n", "\n", -1)
+		return tempEnv.Express(line)
+	} else {
+		if lines[0] == "[" {
+			list := &List{}
+			for i := 1; i < len(lines); i++ {
+				if lines[i] == "]" {
+					break
+				} else if lines[i] == "[" {
+					start := i
+					i++
+					count := 1
+					for i < len(lines) {
+						if lines[i] == "[" {
+							count++
+						} else if lines[i] == "]" {
+							count--
+						}
+						if count == 0 {
+							list.Push(deserialize(lines[start : i+1]))
+							break
+						}
+						i++
+					}
+				} else if lines[i] == "{" {
+					start := i
+					i++
+					count := 1
+					for i < len(lines) {
+						if lines[i] == "{" {
+							count++
+						} else if lines[i] == "}" {
+							count--
+						}
+						if count == 0 {
+							list.Push(deserialize(lines[start : i+1]))
+							break
+						}
+						i++
+					}
+				} else {
+					list.Push(deserialize(lines[i : i+1]))
+				}
+			}
+			return NewValue(list)
+		} else if lines[0] == "{" {
+			m := &Map{}
+			for i := 1; i < len(lines); i++ {
+				if lines[i] == "}" {
+					break
+				}
+				key := lines[i]
+				var val *Value
+				i++
+				if lines[i] == "}" {
+					break
+				} else if lines[i] == "{" {
+					start := i
+					i++
+					count := 1
+					for i < len(lines) {
+						if lines[i] == "{" {
+							count++
+						} else if lines[i] == "}" {
+							count--
+						}
+						if count == 0 {
+							val = deserialize(lines[start : i+1])
+							break
+						}
+						i++
+					}
+				} else if lines[i] == "[" {
+					start := i
+					i++
+					count := 1
+					for i < len(lines) {
+						if lines[i] == "[" {
+							count++
+						} else if lines[i] == "]" {
+							count--
+						}
+						if count == 0 {
+							val = deserialize(lines[start : i+1])
+							break
+						}
+						i++
+					}
+				} else {
+					val = deserialize(lines[i : i+1])
+				}
+				m.Put(key, val)
+			}
+			return NewValue(m)
+		}
+	}
+	return NewValue(nil)
 }
