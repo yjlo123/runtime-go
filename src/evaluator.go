@@ -1,9 +1,11 @@
 package runtime
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -113,10 +115,39 @@ func ParseJSON(str string) *Value {
 			i, _ := strconv.Atoi(v)
 			list.Push(NewValue(i))
 		}
-		result := NewValue(list)
-		return result
+		return NewValue(list)
 	}
 
+	if str[0] == '{' {
+		var result map[string]interface{}
+		json.Unmarshal([]byte(str), &result)
+		m := &Map{}
+		for k, v := range result {
+			m.Put(k, parseJSONRec(v))
+		}
+		return NewValue(m)
+	}
+
+	return NewValue(nil)
+}
+
+func parseJSONRec(data interface{}) *Value {
+	kind := reflect.ValueOf(data).Kind()
+	if kind == reflect.Map {
+		mm := &Map{}
+		for k, v := range data.(map[string]interface{}) {
+			mm.Put(k, parseJSONRec(v))
+		}
+		return NewValue(mm)
+	} else if kind == reflect.Slice {
+		lst := &List{}
+		for _, v := range data.([]interface{}) {
+			lst.Push(parseJSONRec(v))
+		}
+		return NewValue(lst)
+	} else if kind == reflect.String {
+		return NewValue(data.(string))
+	}
 	return NewValue(nil)
 }
 
@@ -290,6 +321,12 @@ func Evaluate(program [][]string, env *Env) *Env {
 					} else if cmd == "put" {
 						l.SetByIndex(idx, env.Express(ts[3]))
 					}
+				} else if ds.Type == ValueTypeStr {
+					s := ds.GetValue().(string)
+					idx := keyValue.GetValue().(int)
+					if cmd == "get" {
+						env.AssignVar(ts[3], NewValue(string(s[idx])))
+					}
 				}
 			} else if cmd == "key" {
 				m := env.Express(ts[1]).GetValue().(*Map)
@@ -320,7 +357,10 @@ func Evaluate(program [][]string, env *Env) *Env {
 				randInt := rand.Intn(val2 - val1)
 				env.AssignVar(ts[1], NewValue(val1+randInt))
 			} else if cmd == "tim" {
-				timeType := ts[2]
+				timeType := env.Express(ts[2]).String()
+				if timeType[0] == '\'' {
+					timeType = timeType[1 : len(timeType)-1]
+				}
 				res := 0
 				now := time.Now()
 				switch timeType {
@@ -329,7 +369,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 				case "year":
 					res = now.Year()
 				case "month":
-					res = int(now.Month())
+					res = int(now.Month()) - 1
 				case "date":
 					res = now.Day()
 				case "day":

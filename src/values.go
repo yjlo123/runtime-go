@@ -65,12 +65,18 @@ func (val *Value) GetValue() interface{} {
 // Equals ..
 func (val *Value) Equals(val2 *Value) bool {
 	// TODO compare list & map
+	if val.Type == ValueTypeInt && val2.Type == ValueTypeInt {
+		return val.GetValue().(int) == val2.GetValue().(int)
+	}
 	return val.Type == val2.Type && val.Val == val2.Val
 }
 
 // IsGreaterThan ..
 func (val *Value) IsGreaterThan(val2 *Value) bool {
 	// TODO compare list & map
+	if val.Type == ValueTypeInt && val2.Type == ValueTypeInt {
+		return val.GetValue().(int) > val2.GetValue().(int)
+	}
 	return val.Type == val2.Type && val.Val > val2.Val
 }
 
@@ -290,12 +296,13 @@ func ConstructList(nums []interface{}) *List {
 // Map ..
 type Map struct {
 	Data map[string]*Value
+	Keys []string
 }
 
 func (m Map) String() string {
 	var str string = "{"
-	for k, v := range m.Data {
-		str += fmt.Sprintf("%s:%v", k, v)
+	for _, k := range m.Keys {
+		str += fmt.Sprintf("%s:%v", k, m.Data[k])
 		str += ","
 	}
 	if len(str) > 1 {
@@ -312,6 +319,7 @@ func (m *Map) Put(key string, val *Value) {
 		m.Data = make(map[string]*Value)
 	}
 	m.Data[key] = val
+	m.Keys = append(m.Keys, key)
 }
 
 // Get returns the value by key
@@ -323,18 +331,29 @@ func (m *Map) Get(key string) *Value {
 	return NewValue(nil)
 }
 
+func indexOf(element string, data []string) int {
+	for k, v := range data {
+		if element == v {
+			return k
+		}
+	}
+	return -1 //not found.
+}
+
 // Delete removes a key-value from the map
 func (m *Map) Delete(key string) {
 	_, ok := m.Data[key]
 	if ok {
 		delete(m.Data, key)
 	}
+	s := indexOf(key, m.Keys)
+	m.Keys = append(m.Keys[:s], m.Keys[s+1:]...)
 }
 
 // GetKeys returns a list of all keys in the map
 func (m *Map) GetKeys() *List {
 	keys := List{}
-	for k := range m.Data {
+	for _, k := range m.Keys {
 		keys.Push(NewValue(k))
 	}
 	return &keys
