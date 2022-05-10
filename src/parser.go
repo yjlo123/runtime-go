@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 )
 
@@ -115,6 +116,14 @@ func Parse(program [][]string) *Env {
 		Vars:   make(map[string]*Value),
 		stack:  []*Frame{},
 		Out: func(content interface{}, ending string) {
+			if reflect.ValueOf(content).Kind() == reflect.String {
+				cont := content.(string)
+				if len(cont) > 3 && cont[:4] == "\\033" {
+					return
+				}
+				//content = strings.Replace(content.(string), "\\033", "\x0cOn", -1)
+			}
+
 			if ending == "\n" {
 				fmt.Println(content)
 			} else {

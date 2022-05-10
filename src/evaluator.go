@@ -301,8 +301,11 @@ func Evaluate(program [][]string, env *Env) *Env {
 						key = keyValue.GetValue().(string)
 					} else if keyValue.Type == ValueTypeInt {
 						key = strconv.Itoa(keyValue.GetValue().(int))
+					} else if keyValue.Type == ValueTypeNil {
+						// key is $nil
+						key = ""
 					} else {
-						panic(fmt.Sprintf("%s: Invalid key data type", cmd))
+						panic(fmt.Sprintf("%s: Invalid key data type: %s", cmd, keyValue.Type))
 					}
 
 					if cmd == "get" {
@@ -325,7 +328,11 @@ func Evaluate(program [][]string, env *Env) *Env {
 					s := ds.GetValue().(string)
 					idx := keyValue.GetValue().(int)
 					if cmd == "get" {
-						env.AssignVar(ts[3], NewValue(string(s[idx])))
+						val := NewValue("")
+						if idx < len(s) {
+							val = NewValue(string(s[idx]))
+						}
+						env.AssignVar(ts[3], val)
 					}
 				}
 			} else if cmd == "key" {

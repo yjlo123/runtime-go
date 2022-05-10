@@ -106,7 +106,9 @@ func (con *console) newLine() {
 
 func (con *console) append(line string) {
 	text := con.content[con.current].(*canvas.Text)
-	if len(text.Text) > 0 && text.Text[con.headLen+con.inputLen-len(line):] == cursorChar {
+
+	offset := con.headLen + con.inputLen - len(line)
+	if len(text.Text) > 0 && con.inputLen > 0 && text.Text[offset:] == cursorChar {
 		text.Text = text.Text[:len(text.Text)-1]
 	}
 	text.Text = text.Text + line
@@ -249,8 +251,8 @@ func runProgram(con *console, app fyne.App, filePath string) {
 		for i, line := range contentStrArr {
 			for con.headLen+len(line) > screenCols {
 				con.headLen = 0
-				con.appendLine(line[:screenCols])
-				line = line[screenCols:]
+				con.appendLine(line[:screenCols-con.headLen-2])
+				line = line[screenCols-con.headLen-2:]
 			}
 			con.headLen += len(line)
 

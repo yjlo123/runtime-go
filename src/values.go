@@ -173,16 +173,21 @@ func (list *List) SetByIndex(idx int, val *Value) {
 		list.Push(val)
 		return
 	}
+	// replace target by the new node
 	target := list.IdxMap[idx]
 	newNode := &ListNode{}
 	newNode.Data = val
 	if target.Prev != nil {
 		newNode.Prev = target.Prev
 		target.Prev.Next = newNode
+	} else {
+		list.Head = newNode
 	}
 	newNode.Next = target.Next
 	if target.Next != nil {
 		target.Next.Prev = newNode
+	} else {
+		list.Tail = newNode
 	}
 }
 
@@ -319,7 +324,10 @@ func (m *Map) Put(key string, val *Value) {
 		m.Data = make(map[string]*Value)
 	}
 	m.Data[key] = val
-	m.Keys = append(m.Keys, key)
+	s := indexOf(key, m.Keys)
+	if s == -1 {
+		m.Keys = append(m.Keys, key)
+	}
 }
 
 // Get returns the value by key
