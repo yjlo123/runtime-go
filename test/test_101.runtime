@@ -160,6 +160,11 @@ cal count_result 'String get' $ret
 put $s1 2 'X'
 cal assert_eq $s1 'abXdefghi'
 cal count_result 'String put' $ret
+let s2 '123'
+let s3 'run'
+add s4 $s2 $s3
+cal assert_eq $s4 '123run'
+cal count_result 'String add' $ret
 
 prt '============'
 prt 'Total ' ''
