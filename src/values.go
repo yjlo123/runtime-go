@@ -189,6 +189,7 @@ func (list *List) SetByIndex(idx int, val *Value) {
 	} else {
 		list.Tail = newNode
 	}
+	list.IdxMap[idx] = newNode
 }
 
 // Poll extrats an element from the left side of the list

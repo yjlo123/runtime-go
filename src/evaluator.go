@@ -325,6 +325,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 						l.SetByIndex(idx, env.Express(ts[3]))
 					}
 				} else if ds.Type == ValueTypeStr {
+					// string
 					s := ds.GetValue().(string)
 					idx := keyValue.GetValue().(int)
 					if cmd == "get" {
@@ -333,6 +334,11 @@ func Evaluate(program [][]string, env *Env) *Env {
 							val = NewValue(string(s[idx]))
 						}
 						env.AssignVar(ts[3], val)
+					} else if cmd == "put" {
+						c := env.Express(ts[3]).GetValue().(string)
+						newVal := NewValue(string(s[:idx] + c + s[idx+1:]))
+						// replace string value (removing $)
+						env.AssignVar(ts[1][1:], newVal)
 					}
 				}
 			} else if cmd == "key" {
