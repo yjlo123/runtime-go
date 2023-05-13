@@ -124,7 +124,11 @@ cal count_result 'List put' $ret
 
 pol $list_1 val
 cal assert_eq $val 23
-cal count_result 'List pol' $ret
+cal count_result 'List pol 1' $ret
+let empty_list []
+pol $empty_list val
+cal assert_eq $val $nil
+cal count_result 'List pol 2' $ret
 pop $list_1 val
 cal assert_eq $val 70
 cal count_result 'List pop 1' $ret
@@ -157,6 +161,9 @@ cal count_result 'String len' $ret
 get $s1 6 c
 cal assert_eq $c 'g'
 cal count_result 'String get' $ret
+get $s1 99 c
+cal assert_eq $c ''
+cal count_result 'String get invalid' $ret
 put $s1 2 'X'
 cal assert_eq $s1 'abXdefghi'
 cal count_result 'String put' $ret
@@ -165,6 +172,79 @@ let s3 'run'
 add s4 $s2 $s3
 cal assert_eq $s4 '123run'
 cal count_result 'String add' $ret
+pol $s4 c
+pol $s4 c
+cal assert_eq $c '2'
+cal count_result 'String poll 1' $ret
+cal assert_eq $s4 '3run'
+cal count_result 'String poll 2' $ret
+let empty_str ''
+pol $empty_str c
+cal assert_eq $c ''
+cal count_result 'String poll 3' $ret
+
+/ == Map
+let m {}
+put $m 'a' 12
+put $m 'b' '23'
+get $m 'a' val
+cal assert_eq $val 12
+cal count_result 'Map get 1' $ret
+get $m 'b' val
+cal assert_eq $val '23'
+cal count_result 'Map get 2' $ret
+get $m 'c' val
+cal assert_eq $val $nil
+cal count_result 'Map get nil' $ret
+put $m 'a' 'aa'
+get $m 'a' val
+cal assert_eq $val 'aa'
+cal count_result 'Map get replaced' $ret
+len $m length
+cal assert_eq $length 2
+cal count_result 'Map length' $ret
+key $m keys
+let lst []
+psh $lst 'a' 'b'
+cal assert_eq $keys $lst
+cal count_result 'Map keys' $ret
+del $m 'b'
+get $m 'b' val
+cal assert_eq $val $nil
+cal count_result 'Map get deleted' $ret
+
+/ == Parse JSON
+prs j1 '{"k1": 123, "k2": "abc", "k3": null}'
+get $j1 'k1' val
+cal assert_eq $val 123
+cal count_result 'Parse JSON get int' $ret
+get $j1 'k2' val
+cal assert_eq $val 'abc'
+cal count_result 'Parse JSON get string' $ret
+get $j1 'k3' val
+cal assert_eq $val $nil
+cal count_result 'Parse JSON get nil' $ret
+prs j2 '{"list": [1,2,"ab"]}'
+get $j2 'list' lst1
+let lst2 []
+psh $lst2 1 2 'ab'
+cal assert_eq $lst1 $lst2
+cal count_result 'Parse JSON get list' $ret
+prs j3 '{"list":[1,2,[[],null,"aa"]]}'
+get $j3 'list' lst
+get $lst 2 inner_lst
+let lst2 []
+psh $lst2 [] $nil 'aa'
+cal assert_eq $inner_lst $lst2
+cal count_result 'Parse JSON inner list' $ret
+prs j4 '{"aa":{"bb":[{"cc":123}]}}'
+get $j4 'aa' im1
+get $im1 'bb' il1
+get $il1 0 im2
+get $im2 'cc' val
+cal assert_eq $val 123
+cal count_result 'Parse JSON inner map' $ret
+
 
 prt '============'
 prt 'Total ' ''

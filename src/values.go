@@ -29,6 +29,8 @@ func (val *Value) String() string {
 		return fmt.Sprintf("%s", *val.MapPtr)
 	} else if val.Type == ValueTypeStr {
 		return fmt.Sprintf("'%s'", val.Val)
+	} else if val.Type == ValueTypeNil {
+		return "nil"
 	}
 	return fmt.Sprintf("%s", val.Val)
 }

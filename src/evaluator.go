@@ -132,14 +132,19 @@ func ParseJSON(str string) *Value {
 }
 
 func parseJSONRec(data interface{}) *Value {
+	if data == nil {
+		return NewValue(nil)
+	}
 	kind := reflect.ValueOf(data).Kind()
 	if kind == reflect.Map {
+		// map
 		mm := &Map{}
 		for k, v := range data.(map[string]interface{}) {
 			mm.Put(k, parseJSONRec(v))
 		}
 		return NewValue(mm)
 	} else if kind == reflect.Slice {
+		// array -> list
 		lst := &List{}
 		for _, v := range data.([]interface{}) {
 			lst.Push(parseJSONRec(v))
@@ -147,7 +152,11 @@ func parseJSONRec(data interface{}) *Value {
 		return NewValue(lst)
 	} else if kind == reflect.String {
 		return NewValue(data.(string))
+	} else if kind == reflect.Float64 {
+		// number -> int
+		return NewValue(int(data.(float64)))
 	}
+
 	return NewValue(nil)
 }
 
@@ -351,6 +360,8 @@ func Evaluate(program [][]string, env *Env) *Env {
 					env.AssignVar(ts[2], l.Len())
 				} else if ds.Type == ValueTypeStr {
 					env.AssignVar(ts[2], NewValue(len(ds.GetValue().(string))))
+				} else if ds.Type == ValueTypeMap {
+					env.AssignVar(ts[2], ds.MapPtr.GetKeys().Len())
 				}
 				// JUMP
 			} else if cmd == "jmp" {
