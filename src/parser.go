@@ -1,11 +1,10 @@
 package runtime
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"reflect"
-	"strings"
+
+	"github.com/pkg/term"
 )
 
 // Tokenize ..
@@ -77,6 +76,44 @@ func Tokenize(src string) [][]string {
 	return tokens
 }
 
+func readChar() (ascii int, keyCode int, err error) {
+	t, _ := term.Open("/dev/tty")
+	term.RawMode(t)
+	bytes := make([]byte, 3)
+
+	var numRead int
+	numRead, err = t.Read(bytes)
+	if err != nil {
+		return
+	}
+	if numRead == 3 && bytes[0] == 27 && bytes[1] == 91 {
+		// Three-character control sequence, beginning with "ESC-[".
+
+		// Since there are no ASCII codes for arrow keys, we use
+		// Javascript key codes.
+		if bytes[2] == 65 {
+			// Up
+			keyCode = 38
+		} else if bytes[2] == 66 {
+			// Down
+			keyCode = 40
+		} else if bytes[2] == 67 {
+			// Right
+			keyCode = 39
+		} else if bytes[2] == 68 {
+			// Left
+			keyCode = 37
+		}
+	} else if numRead == 1 {
+		ascii = int(bytes[0])
+	} else {
+		// Two characters read??
+	}
+	t.Restore()
+	t.Close()
+	return
+}
+
 // Parse ..
 func Parse(program [][]string) *Env {
 	labels := make(map[string]int)
@@ -132,10 +169,45 @@ func Parse(program [][]string) *Env {
 			}
 		},
 		In: func() string {
-			consoleReader := bufio.NewReader(os.Stdin)
-			input, _ := consoleReader.ReadString('\n')
-			input = strings.Replace(input, "\r\n", "\n", -1)
-			return input[0 : len(input)-1]
+			input := ""
+			for {
+				ascii, keyCode, err := readChar()
+				char := rune(ascii)
+				if err != nil {
+					fmt.Println(err)
+					break
+				}
+
+				if char == '\r' {
+					fmt.Print("\n\r")
+					break
+				}
+				if char == '\t' {
+					continue
+				}
+				if char == '\u007f' {
+					if input == "" {
+						continue
+					}
+					input = input[:len(input)-1]
+					fmt.Printf("\b \b")
+					continue
+				}
+
+				if keyCode == 37 {
+					fmt.Print("<")
+				} else if keyCode == 38 {
+					fmt.Print("^")
+				} else if keyCode == 39 {
+					fmt.Print(">")
+				} else if keyCode == 40 {
+					fmt.Print("v")
+				}
+
+				input += string(char)
+				fmt.Printf("%c", char)
+			}
+			return input
 		},
 		loops: make(map[string]*loopDetail),
 	}
