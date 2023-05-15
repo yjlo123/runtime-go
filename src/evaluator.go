@@ -671,3 +671,21 @@ func deserialize(lines []string) *Value {
 	}
 	return NewValue(nil)
 }
+
+func evaluateFuncCall(program [][]string, env *Env, funcName string, args []string) {
+	callLine := []string{"cal", funcName}
+	callLine = append(callLine, args...)
+	extendedProgram := append(program, callLine)
+	lastLine := []string{"let", "_", "0"}
+	extendedProgram = append(extendedProgram, lastLine)
+	backupPc := env.Pc
+	env.Pc = len(extendedProgram) - 2
+	Evaluate(extendedProgram, env)
+	env.Pc++
+	for env.Pc < len(extendedProgram) {
+		fmt.Println(env.Pc)
+		Evaluate(extendedProgram, env)
+		env.Pc++
+	}
+	env.Pc = backupPc
+}

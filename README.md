@@ -19,7 +19,7 @@ go build .
 env GOOS=linux GOARCH=amd64 go build .
 ```
 
-## Packaging GUI (deprecate)
+## Packaging GUI (Deprecated)
 https://developer.fyne.io/started/packaging  
 ```
 cd ui

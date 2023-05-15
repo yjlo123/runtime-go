@@ -121,6 +121,20 @@ func Parse(program [][]string) *Env {
 				if len(cont) > 3 && cont[:4] == "\\033" {
 					return
 				}
+				if cont == "\\x1b[A" {
+					gt.CursorUp(1)
+					return
+				} else if cont == "\\x1b[B" {
+					gt.CursorDown(1)
+					return
+				} else if cont == "\\x1b[C" {
+					gt.CursorRight(1)
+					return
+				} else if cont == "\\x1b[D" {
+					gt.CursorLeft(1)
+					return
+				}
+
 				//content = strings.Replace(content.(string), "\\033", "\x0cOn", -1)
 			}
 
@@ -256,7 +270,22 @@ func Parse(program [][]string) *Env {
 					continue
 				} else if r == 9 {
 					// Tab
-					continue
+					_, definedAutocomplete := env.Funcs["get_autocomplete"]
+					if definedAutocomplete {
+						args := []string{input, "1"}
+						evaluateFuncCall(program, env, "get_autocomplete", args)
+						suggestions := env.Express("$autocomplete_").GetValue().(*List)
+						// fmt.Println(suggestions)
+						if suggestions.Length == 1 {
+							theCandidate := suggestions.GetByIndex(0).GetValue().(string)
+							theCandidate = theCandidate[len(input):]
+							gt.CursorRight(len(input) - cursor)
+							input += theCandidate
+							cursor = len(input)
+							fmt.Print(theCandidate)
+						}
+						continue
+					}
 				} else if r == 13 {
 					// Enter
 					fmt.Print("\n\r")
