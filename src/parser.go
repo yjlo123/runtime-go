@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	gt "github.com/leandroveronezi/go-terminal"
+	ac "atomicgo.dev/cursor"
 	"github.com/mattn/go-tty"
 )
 
@@ -122,16 +122,20 @@ func Parse(program [][]string) *Env {
 					return
 				}
 				if cont == "\\x1b[A" {
-					gt.CursorUp(1)
+					//gt.CursorUp(1)
+					ac.Up(1)
 					return
 				} else if cont == "\\x1b[B" {
-					gt.CursorDown(1)
+					//gt.CursorDown(1)
+					ac.Down(1)
 					return
 				} else if cont == "\\x1b[C" {
-					gt.CursorRight(1)
+					//gt.CursorRight(1)
+					ac.Right(1)
 					return
 				} else if cont == "\\x1b[D" {
-					gt.CursorLeft(1)
+					//gt.CursorLeft(1)
+					ac.Left(1)
 					return
 				}
 
@@ -164,13 +168,15 @@ func Parse(program [][]string) *Env {
 
 			moveCursorRight := func(n int) {
 				if n > 0 {
-					gt.CursorRight(n)
+					//gt.CursorRight(n)
+					ac.Right(n)
 				}
 			}
 
 			moveCursorLeft := func(n int) {
 				if n > 0 {
-					gt.CursorLeft(n)
+					//gt.CursorLeft(n)
+					ac.Left(n)
 				}
 			}
 
