@@ -162,8 +162,20 @@ func Parse(program [][]string) *Env {
 			cursor := 0
 			consoleHistoryIndex := len(env.ConsoleHistory)
 
+			moveCursorRight := func(n int) {
+				if n > 0 {
+					gt.CursorRight(n)
+				}
+			}
+
+			moveCursorLeft := func(n int) {
+				if n > 0 {
+					gt.CursorLeft(n)
+				}
+			}
+
 			clearInput := func() {
-				gt.CursorRight(len(input) - cursor)
+				moveCursorRight(len(input) - cursor)
 				cursor = len(input)
 				for i := 0; i < cursor; i++ {
 					fmt.Print("\b \b")
@@ -226,14 +238,14 @@ func Parse(program [][]string) *Env {
 						case 'C':
 							// Arrow Right
 							if cursor < len(input) {
-								gt.CursorRight(1)
+								moveCursorRight(1)
 								cursor++
 							}
 							continue
 						case 'D':
 							// Arrow Left
 							if cursor > 0 {
-								gt.CursorLeft(1)
+								moveCursorLeft(1)
 								cursor--
 							}
 							continue
@@ -243,7 +255,7 @@ func Parse(program [][]string) *Env {
 
 				if r == 1 {
 					// ^A
-					gt.CursorLeft(cursor)
+					moveCursorLeft(cursor)
 					cursor = 0
 					continue
 				} else if r == 3 {
@@ -252,7 +264,7 @@ func Parse(program [][]string) *Env {
 					continue
 				} else if r == 5 {
 					// ^E
-					gt.CursorRight(len(input) - cursor)
+					moveCursorRight(len(input) - cursor)
 					cursor = len(input)
 					continue
 				} else if r == 8 || r == 127 {
@@ -265,7 +277,7 @@ func Parse(program [][]string) *Env {
 					right := input[cursor:]
 					input = left + right
 					fmt.Print("\b \b" + right + " ")
-					gt.CursorLeft(len(right) + 1)
+					moveCursorLeft(len(right) + 1)
 					cursor--
 					continue
 				} else if r == 9 {
@@ -279,7 +291,7 @@ func Parse(program [][]string) *Env {
 						if suggestions.Length == 1 {
 							theCandidate := suggestions.GetByIndex(0).GetValue().(string)
 							theCandidate = theCandidate[len(input):]
-							gt.CursorRight(len(input) - cursor)
+							moveCursorRight(len(input) - cursor)
 							input += theCandidate
 							cursor = len(input)
 							fmt.Print(theCandidate)
@@ -294,10 +306,11 @@ func Parse(program [][]string) *Env {
 
 				left := input[:cursor]
 				right := input[cursor:]
+				//fmt.Println(input, len(right), cursor)
 				input = left + string(r) + right
 				fmt.Printf("%c%s", r, right)
 				cursor++
-				gt.CursorLeft(len(right))
+				moveCursorLeft(len(right))
 			}
 			// record input in env history
 			if len(input) > 0 {
