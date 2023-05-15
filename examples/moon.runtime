@@ -65,7 +65,7 @@ def load_extra_files
  nxt
 end
 cal load_extra_files
-let os_build '230513.1841'
+let os_build '230515.1345'
 
 / ====== parsing runtime program ======
 def parse_line
@@ -1822,67 +1822,57 @@ def lib_get_sys_info
 end
 
 def lib_screen_prev_line
- prt '\\033[F'
+ /prt '\\033[F'
+ con 'line' 'prev'
 end
 
 def lib_screen_clear_line
- prt '\\033[2K'
+ /prt '\\033[2K'
+ con 'line' 'clear'
 end
 
 def lib_screen_clear_screen
- prt '\\033[2H'
+ /prt '\\033[2H'
+ con 'screen' 'clear'
 end
 
 def lib_screen_reverse
- prt '\\u001b[7m' ''
+ con 'color' 'reverse'
 end
 
 def lib_screen_reset
- prt '\\u001b[0m' ''
+ con 'color' 'reset'
 end
 
 def lib_screen_color_print
  let _text $0
  let _fg_color $1
  let _bg_color $2
- let _seq ''
- jeq $_fg_color $nil skip_fg
- add _seq $_seq '\\u001b[38;5;'
- add _seq $_seq $_fg_color
- add _seq $_seq 'm'
- #skip_fg
- jeq $_bg_color $nil skip_bg
- add _seq $_seq '\\u001b[48;5;'
- add _seq $_seq $_bg_color
- add _seq $_seq 'm'
- #skip_bg
- add _seq $_seq $_text
- add _seq $_seq '\\u001b[0m'  / reset
- prt $_seq ''
+ con 'color_print' $_text $_fg_color $_bg_color
 end
 
 def lib_screen_up_arrow
- prt '\\x1b[A'
+ con 'arrow' 'up'
 end
 
 def lib_screen_down_arrow
- prt '\\x1b[B'
+ con 'arrow' 'down'
 end
 
 def lib_screen_left_arrow
- prt '\\x1b[D'
+ con 'arrow' 'left'
 end
 
 def lib_screen_right_arrow
- prt '\\x1b[C'
+ con 'arrow' 'right'
 end
 
 def lib_screen_alternate_buffer
- prt '\\x9B?47h'
+ con 'buffer' 'alternate'
 end
 
 def lib_screen_primary_buffer
- prt '\\x9B?47l'
+ con 'buffer' 'primary'
 end
 
 def lib_set_prt_delay

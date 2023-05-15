@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	ac "atomicgo.dev/cursor"
+	"github.com/gookit/color"
 	"github.com/mattn/go-tty"
 )
 
@@ -329,5 +330,23 @@ func Parse(program [][]string) *Env {
 			return input
 		},
 		loops: make(map[string]*loopDetail),
+		Extended: map[string]func(*Env, []*Value){
+			"con": func(env *Env, args []*Value) {
+				t := args[0].GetValue().(string)
+				if t == "color_print" {
+					var c color.Color256
+					text := args[1].GetValue().(string)
+					fgColor := args[2]
+					bgColor := args[3]
+					if fgColor.Type != ValueTypeNil {
+						c = color.C256(uint8(fgColor.GetValue().(int)))
+					}
+					if bgColor.Type != ValueTypeNil {
+						c = color.C256(uint8(bgColor.GetValue().(int)), true)
+					}
+					c.Print(text)
+				}
+			},
+		},
 	}
 }

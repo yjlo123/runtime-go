@@ -513,6 +513,13 @@ func Evaluate(program [][]string, env *Env) *Env {
 				if err != nil {
 					fmt.Println(err)
 				}
+			} else if handler, ok := env.Extended[cmd]; ok {
+				// extended commands
+				args := []*Value{}
+				for _, arg := range ts[1:] {
+					args = append(args, env.Express(arg))
+				}
+				handler(env, args)
 			} else if cmd == "test_init" {
 				env.AssignVar("test_pass", NewValue(0))
 				env.AssignVar("test_fail", NewValue(0))

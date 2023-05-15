@@ -27,6 +27,7 @@ type Env struct {
 	Out            func(interface{}, string)
 	In             func(*Env) string
 	ConsoleHistory []string
+	Extended       map[string]func(*Env, []*Value)
 }
 
 // AdvancePc ..
