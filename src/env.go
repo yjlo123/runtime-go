@@ -18,14 +18,15 @@ type loopDetail struct {
 
 // Env ..
 type Env struct {
-	Labels map[string]int
-	Vars   map[string]*Value // global vars
-	Funcs  map[string]*funcDetail
-	stack  []*Frame
-	loops  map[string]*loopDetail
-	Pc     int
-	Out    func(interface{}, string)
-	In     func() string
+	Labels         map[string]int
+	Vars           map[string]*Value // global vars
+	Funcs          map[string]*funcDetail
+	stack          []*Frame
+	loops          map[string]*loopDetail
+	Pc             int
+	Out            func(interface{}, string)
+	In             func(*Env) string
+	ConsoleHistory []string
 }
 
 // AdvancePc ..
@@ -121,7 +122,7 @@ func (env *Env) GotoLabelByName(name string) {
    FRAME
    ========= */
 
-//Frame ..
+// Frame ..
 type Frame struct {
 	FuncName string
 	Pc       int

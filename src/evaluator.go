@@ -183,7 +183,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 				val := env.Express(ts[2])
 				env.AssignVar(ts[1], val)
 			} else if cmd == "inp" {
-				input := env.In()
+				input := env.In(env)
 				env.AssignVar(ts[1], NewValue(input))
 			} else if cmd == "int" {
 				val := env.Express(ts[2])

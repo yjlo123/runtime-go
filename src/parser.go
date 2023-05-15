@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/pkg/term"
+	gt "github.com/leandroveronezi/go-terminal"
+	"github.com/mattn/go-tty"
 )
 
 // Tokenize ..
@@ -76,44 +77,6 @@ func Tokenize(src string) [][]string {
 	return tokens
 }
 
-func readChar() (ascii int, keyCode int, err error) {
-	t, _ := term.Open("/dev/tty")
-	term.RawMode(t)
-	bytes := make([]byte, 3)
-
-	var numRead int
-	numRead, err = t.Read(bytes)
-	if err != nil {
-		return
-	}
-	if numRead == 3 && bytes[0] == 27 && bytes[1] == 91 {
-		// Three-character control sequence, beginning with "ESC-[".
-
-		// Since there are no ASCII codes for arrow keys, we use
-		// Javascript key codes.
-		if bytes[2] == 65 {
-			// Up
-			keyCode = 38
-		} else if bytes[2] == 66 {
-			// Down
-			keyCode = 40
-		} else if bytes[2] == 67 {
-			// Right
-			keyCode = 39
-		} else if bytes[2] == 68 {
-			// Left
-			keyCode = 37
-		}
-	} else if numRead == 1 {
-		ascii = int(bytes[0])
-	} else {
-		// Two characters read??
-	}
-	t.Restore()
-	t.Close()
-	return
-}
-
 // Parse ..
 func Parse(program [][]string) *Env {
 	labels := make(map[string]int)
@@ -168,45 +131,153 @@ func Parse(program [][]string) *Env {
 				fmt.Print(ending)
 			}
 		},
-		In: func() string {
+		In: func(env *Env) string {
+			tty, err := tty.Open()
+			if err != nil {
+				fmt.Println(err)
+			}
+			defer tty.Close()
+
+			// go func() {
+			// 	for ws := range tty.SIGWINCH() {
+			// 		fmt.Println("Resized", ws.W, ws.H)
+			// 	}
+			// }()
+
 			input := ""
+			cursor := 0
+			consoleHistoryIndex := len(env.ConsoleHistory)
+
+			clearInput := func() {
+				gt.CursorRight(len(input) - cursor)
+				cursor = len(input)
+				for i := 0; i < cursor; i++ {
+					fmt.Print("\b \b")
+				}
+				input = ""
+				cursor = 0
+			}
+
+			setInput := func(text string) {
+				clearInput()
+				fmt.Print(text)
+				input = text
+				cursor = len(input)
+			}
+
+			clean, err := tty.Raw()
+			if err != nil {
+				fmt.Println(err)
+			}
+			defer clean()
+
 			for {
-				ascii, keyCode, err := readChar()
-				char := rune(ascii)
+				r, err := tty.ReadRune()
 				if err != nil {
 					fmt.Println(err)
-					break
 				}
 
-				if char == '\r' {
+				if r == 0 {
+					continue
+				}
+
+				if r == 27 && tty.Buffered() {
+					// Arrow keys
+					r, err = tty.ReadRune()
+					if err == nil && r == 0x5b {
+						r, err = tty.ReadRune()
+						if err != nil {
+							panic(err)
+						}
+						switch r {
+						case 'A':
+							// Arrow Up
+							if consoleHistoryIndex > 0 {
+								consoleHistoryIndex--
+								record := env.ConsoleHistory[consoleHistoryIndex]
+								setInput(record)
+							}
+							continue
+						case 'B':
+							// Arrow Down
+							if consoleHistoryIndex < len(env.ConsoleHistory) {
+								consoleHistoryIndex++
+								if consoleHistoryIndex == len(env.ConsoleHistory) {
+									clearInput()
+								} else {
+									setInput(env.ConsoleHistory[consoleHistoryIndex])
+								}
+							}
+							continue
+						case 'C':
+							// Arrow Right
+							if cursor < len(input) {
+								gt.CursorRight(1)
+								cursor++
+							}
+							continue
+						case 'D':
+							// Arrow Left
+							if cursor > 0 {
+								gt.CursorLeft(1)
+								cursor--
+							}
+							continue
+						}
+					}
+				}
+
+				if r == 1 {
+					// ^A
+					gt.CursorLeft(cursor)
+					cursor = 0
+					continue
+				} else if r == 3 {
+					// ^C
+					fmt.Print("^C")
+					continue
+				} else if r == 5 {
+					// ^E
+					gt.CursorRight(len(input) - cursor)
+					cursor = len(input)
+					continue
+				} else if r == 8 || r == 127 {
+					// Backspace
+					// Win: 8, Linux: 127
+					if input == "" || cursor == 0 {
+						continue
+					}
+					left := input[:cursor-1]
+					right := input[cursor:]
+					input = left + right
+					fmt.Print("\b \b" + right + " ")
+					gt.CursorLeft(len(right) + 1)
+					cursor--
+					continue
+				} else if r == 9 {
+					// Tab
+					continue
+				} else if r == 13 {
+					// Enter
 					fmt.Print("\n\r")
 					break
 				}
-				if char == '\t' {
-					continue
-				}
-				if char == '\u007f' {
-					if input == "" {
-						continue
-					}
-					input = input[:len(input)-1]
-					fmt.Printf("\b \b")
-					continue
-				}
 
-				if keyCode == 37 {
-					fmt.Print("<")
-				} else if keyCode == 38 {
-					fmt.Print("^")
-				} else if keyCode == 39 {
-					fmt.Print(">")
-				} else if keyCode == 40 {
-					fmt.Print("v")
-				}
-
-				input += string(char)
-				fmt.Printf("%c", char)
+				left := input[:cursor]
+				right := input[cursor:]
+				input = left + string(r) + right
+				fmt.Printf("%c%s", r, right)
+				cursor++
+				gt.CursorLeft(len(right))
 			}
+			// record input in env history
+			if len(input) > 0 {
+				env.ConsoleHistory = append(env.ConsoleHistory, input)
+				if len(env.ConsoleHistory) > 20 {
+					env.ConsoleHistory = env.ConsoleHistory[1:]
+				}
+			}
+
 			return input
 		},
 		loops: make(map[string]*loopDetail),

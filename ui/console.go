@@ -268,7 +268,7 @@ func runProgram(con *console, app fyne.App, filePath string) {
 
 		}
 	}
-	env.In = func() string {
+	env.In = func(env *runtime.Env) string {
 		con.inputMode = true
 		return <-con.input
 	}
