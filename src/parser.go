@@ -378,6 +378,7 @@ func Parse(program [][]string, tty *tty.TTY) *Env {
 				t := args[0].GetValue().(string)
 				if t == "color_print" {
 					var c color.Color256
+					var s *color.Style256
 					textValue := args[1].GetValue()
 					textString := ""
 					switch textValue.(type) {
@@ -389,15 +390,21 @@ func Parse(program [][]string, tty *tty.TTY) *Env {
 					//s := output.String(textString)
 					fgColor := args[2]
 					bgColor := args[3]
-					if fgColor.Type != ValueTypeNil {
+					if fgColor.Type != ValueTypeNil && bgColor.Type != ValueTypeNil {
+						s = color.S256(uint8(fgColor.GetValue().(int)), uint8(bgColor.GetValue().(int)))
+					} else if fgColor.Type != ValueTypeNil {
 						//s.Foreground(output.Color(strconv.Itoa(fgColor.GetValue().(int))))
 						c = color.C256(uint8(fgColor.GetValue().(int)))
-					}
-					if bgColor.Type != ValueTypeNil {
+					} else if bgColor.Type != ValueTypeNil {
 						//s.Background(output.Color(strconv.Itoa(bgColor.GetValue().(int))))
 						c = color.C256(uint8(bgColor.GetValue().(int)), true)
 					}
-					c.Print(textString)
+					if s != nil {
+						s.Print(textString)
+					} else {
+						c.Print(textString)
+					}
+
 					//fmt.Print(s)
 				} else if t == "arrow" {
 					direction := args[1].GetValue().(string)
