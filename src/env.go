@@ -26,6 +26,7 @@ type Env struct {
 	Pc             int
 	Out            func(interface{}, string)
 	In             func(*Env) string
+	InKey          func(*Env) int
 	ConsoleHistory []string
 	Extended       map[string]func(*Env, []*Value)
 }
@@ -42,6 +43,11 @@ func (env *Env) Express(expr string) *Value {
 	}
 	if expr[0] == '$' {
 		// reference
+		if expr == "$key_press" {
+			keyList := NewValue(&List{})
+			keyList.ListPtr.Push(NewValue(env.InKey(env)))
+			return keyList
+		}
 		if expr[1:] == "nil" {
 			return NewValue(nil)
 		}

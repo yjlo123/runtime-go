@@ -239,7 +239,7 @@ func runProgram(con *console, app fyne.App, filePath string) {
 	src = strings.Replace(src, "\r\n", "\n", -1)
 
 	program := runtime.Tokenize(src)
-	env := runtime.Parse(program)
+	env := runtime.Parse(program, nil)
 	env.Out = func(content interface{}, ending string) {
 		contentStr := fmt.Sprintf("%v", content)
 

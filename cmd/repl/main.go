@@ -17,7 +17,7 @@ func readLine() string {
 
 func main() {
 	program := runtime.Tokenize("")
-	env := runtime.Parse(program)
+	env := runtime.Parse(program, nil)
 	//fmt.Println(env.Vars)
 	line := readLine()
 	for line != "quit" {

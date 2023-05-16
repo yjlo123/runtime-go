@@ -2,11 +2,15 @@ package runtime
 
 import (
 	"fmt"
+	"os"
 	"reflect"
+	"strconv"
+	"strings"
 
 	ac "atomicgo.dev/cursor"
 	"github.com/gookit/color"
 	"github.com/mattn/go-tty"
+	"github.com/muesli/termenv"
 )
 
 // Tokenize ..
@@ -79,7 +83,7 @@ func Tokenize(src string) [][]string {
 }
 
 // Parse ..
-func Parse(program [][]string) *Env {
+func Parse(program [][]string, tty *tty.TTY) *Env {
 	labels := make(map[string]int)
 	funcs := make(map[string]*funcDetail)
 
@@ -150,19 +154,46 @@ func Parse(program [][]string) *Env {
 				fmt.Print(ending)
 			}
 		},
-		In: func(env *Env) string {
-			tty, err := tty.Open()
-			if err != nil {
-				fmt.Println(err)
+		InKey: func(env *Env) int {
+			for {
+				r, err := tty.ReadRune()
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				if r == 0 {
+					continue
+				}
+
+				if r == 27 && tty.Buffered() {
+					// Arrow keys
+					r, err = tty.ReadRune()
+					if err == nil && r == 0x5b {
+						r, err = tty.ReadRune()
+						if err != nil {
+							panic(err)
+						}
+						switch r {
+						case 'A':
+							return 38
+						case 'B':
+							return 40
+						case 'C':
+							return 39
+						case 'D':
+							return 37
+						}
+					}
+				}
+
+				keyCode := int(r)
+				if keyCode >= 97 && keyCode <= 122 {
+					keyCode -= 32
+				}
+				return keyCode
 			}
-			defer tty.Close()
-
-			// go func() {
-			// 	for ws := range tty.SIGWINCH() {
-			// 		fmt.Println("Resized", ws.W, ws.H)
-			// 	}
-			// }()
-
+		},
+		In: func(env *Env) string {
 			input := ""
 			cursor := 0
 			consoleHistoryIndex := len(env.ConsoleHistory)
@@ -291,13 +322,24 @@ func Parse(program [][]string) *Env {
 					// Tab
 					_, definedAutocomplete := env.Funcs["get_autocomplete"]
 					if definedAutocomplete {
-						args := []string{input, "1"}
+						tokens := strings.Fields(input)
+						if len(tokens) == 0 || (len(input) > 0 && input[len(input)-1] == ' ') {
+							continue
+						}
+						lastToken := tokens[len(tokens)-1]
+						isProgramFromPath := "0"
+						if len(tokens) == 1 && !strings.Contains(input, "/") {
+							isProgramFromPath = "1"
+						}
+						args := []string{"'" + lastToken + "'", isProgramFromPath}
 						evaluateFuncCall(program, env, "get_autocomplete", args)
 						suggestions := env.Express("$autocomplete_").GetValue().(*List)
 						// fmt.Println(suggestions)
 						if suggestions.Length == 1 {
 							theCandidate := suggestions.GetByIndex(0).GetValue().(string)
-							theCandidate = theCandidate[len(input):]
+							pathWords := strings.Split(lastToken, "/")
+							lastPathWord := pathWords[len(pathWords)-1]
+							theCandidate = theCandidate[len(lastPathWord):]
 							moveCursorRight(len(input) - cursor)
 							input += theCandidate
 							cursor = len(input)
@@ -332,19 +374,59 @@ func Parse(program [][]string) *Env {
 		loops: make(map[string]*loopDetail),
 		Extended: map[string]func(*Env, []*Value){
 			"con": func(env *Env, args []*Value) {
+				output := termenv.NewOutput(os.Stdout)
 				t := args[0].GetValue().(string)
 				if t == "color_print" {
 					var c color.Color256
-					text := args[1].GetValue().(string)
+					textValue := args[1].GetValue()
+					textString := ""
+					switch textValue.(type) {
+					case int:
+						textString = strconv.Itoa(textValue.(int))
+					case string:
+						textString = textValue.(string)
+					}
+					//s := output.String(textString)
 					fgColor := args[2]
 					bgColor := args[3]
 					if fgColor.Type != ValueTypeNil {
+						//s.Foreground(output.Color(strconv.Itoa(fgColor.GetValue().(int))))
 						c = color.C256(uint8(fgColor.GetValue().(int)))
 					}
 					if bgColor.Type != ValueTypeNil {
+						//s.Background(output.Color(strconv.Itoa(bgColor.GetValue().(int))))
 						c = color.C256(uint8(bgColor.GetValue().(int)), true)
 					}
-					c.Print(text)
+					c.Print(textString)
+					//fmt.Print(s)
+				} else if t == "arrow" {
+					direction := args[1].GetValue().(string)
+					switch direction {
+					case "up":
+						ac.Up(1)
+					case "down":
+						ac.Down(1)
+					case "left":
+						ac.Left(1)
+					case "right":
+						ac.Right(1)
+					}
+				} else if t == "clear" {
+					mode := args[1].GetValue().(string)
+					switch mode {
+					case "line":
+						ac.ClearLine()
+					case "screen":
+						output.ClearScreen()
+					}
+				} else if t == "buffer" {
+					mode := args[1].GetValue().(string)
+					switch mode {
+					case "primary":
+						output.ExitAltScreen()
+					case "alternate":
+						output.AltScreen()
+					}
 				}
 			},
 		},

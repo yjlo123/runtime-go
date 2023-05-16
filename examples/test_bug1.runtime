@@ -1,0 +1,8 @@
+let keyword 'abc'
+let list []
+psh $list $keyword
+pop $keyword c
+/ ** new_word is 'ab' instead of 'abc'
+pop $list new_word
+psh $keyword $c
+prt $new_word

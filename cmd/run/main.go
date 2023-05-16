@@ -6,7 +6,8 @@ import (
 	"os"
 	"strings"
 
-	runtime "github.com/yjlo123/runtime-go/src"
+	"github.com/mattn/go-tty"
+	rts "github.com/yjlo123/runtime-go/src"
 )
 
 func main() {
@@ -25,7 +26,25 @@ func main() {
 	// replace newline characters for windows
 	src = strings.Replace(src, "\r\n", "\n", -1)
 
-	program := runtime.Tokenize(src)
-	env := runtime.Parse(program)
-	runtime.Evaluate(program, env)
+	program := rts.Tokenize(src)
+
+	tty, err := tty.Open()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer tty.Close()
+
+	env := rts.Parse(program, tty)
+
+	go func() {
+		for ws := range tty.SIGWINCH() {
+			env.Vars["term_w"] = rts.NewValue(ws.W)
+			env.Vars["term_h"] = rts.NewValue(ws.H)
+		}
+	}()
+
+	w, h, _ := tty.Size()
+	env.Vars["term_w"] = rts.NewValue(w)
+	env.Vars["term_h"] = rts.NewValue(h)
+	rts.Evaluate(program, env)
 }
