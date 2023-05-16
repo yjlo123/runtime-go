@@ -1,11 +1,9 @@
 package runtime
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -99,65 +97,6 @@ func advancetoLoopEnd(program [][]string, env *Env) {
 		}
 		env.Pc++
 	}
-}
-
-// ParseJSON ..
-func ParseJSON(str string) *Value {
-	if len(str) == 0 {
-		return NewValue(nil)
-	}
-
-	if str[0] == '[' {
-		list := &List{}
-		content := str[1 : len(str)-1]
-		vals := strings.Split(content, ",")
-		for _, v := range vals {
-			i, _ := strconv.Atoi(v)
-			list.Push(NewValue(i))
-		}
-		return NewValue(list)
-	}
-
-	if str[0] == '{' {
-		var result map[string]interface{}
-		json.Unmarshal([]byte(str), &result)
-		m := &Map{}
-		for k, v := range result {
-			m.Put(k, parseJSONRec(v))
-		}
-		return NewValue(m)
-	}
-
-	return NewValue(nil)
-}
-
-func parseJSONRec(data interface{}) *Value {
-	if data == nil {
-		return NewValue(nil)
-	}
-	kind := reflect.ValueOf(data).Kind()
-	if kind == reflect.Map {
-		// map
-		mm := &Map{}
-		for k, v := range data.(map[string]interface{}) {
-			mm.Put(k, parseJSONRec(v))
-		}
-		return NewValue(mm)
-	} else if kind == reflect.Slice {
-		// array -> list
-		lst := &List{}
-		for _, v := range data.([]interface{}) {
-			lst.Push(parseJSONRec(v))
-		}
-		return NewValue(lst)
-	} else if kind == reflect.String {
-		return NewValue(data.(string))
-	} else if kind == reflect.Float64 {
-		// number -> int
-		return NewValue(int(data.(float64)))
-	}
-
-	return NewValue(nil)
 }
 
 // Evaluate ..
@@ -491,7 +430,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 				}
 			} else if cmd == "prs" {
 				jsonStr := env.Express((ts[2]))
-				env.AssignVar(ts[1], ParseJSON(jsonStr.GetValue().(string)))
+				env.AssignVar(ts[1], Deserialize(jsonStr.GetValue().(string)))
 			} else if cmd == "lod" {
 				fileName := env.Express(ts[1]).GetValue().(string)
 				fileData, err := ioutil.ReadFile(fileName)
@@ -499,8 +438,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 					data := string(fileData)
 					// replace newline characters for windows
 					data = strings.Replace(data, "\r\n", "\n", -1)
-					lines := strings.Split(data, "\n")
-					env.AssignVar(ts[2], deserialize(lines))
+					env.AssignVar(ts[2], Deserialize(data))
 				} else {
 					//fmt.Println(err)
 					env.AssignVar(ts[2], NewValue(nil))
@@ -508,7 +446,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 			} else if cmd == "sav" {
 				fileName := env.Express(ts[1]).GetValue().(string)
 				dataContent := env.Express(ts[2])
-				data := serialize(dataContent)
+				data := Serialize(dataContent)
 				err := ioutil.WriteFile(fileName, data, 0644)
 				if err != nil {
 					fmt.Println(err)
@@ -537,146 +475,6 @@ func Evaluate(program [][]string, env *Env) *Env {
 		env.AdvancePc()
 	}
 	return env
-}
-
-func serialize(content *Value) []byte {
-	var data []byte
-	if content.Type == ValueTypeStr {
-		data = append(data, '\'')
-		strVal := strings.Replace(content.Val, "\n", "\\n", -1)
-		data = append(data, []byte(strVal)...)
-		data = append(data, '\'')
-	} else if content.Type == ValueTypeInt {
-		data = []byte(content.Val)
-	} else if content.Type == ValueTypeNil {
-		data = []byte("$nil")
-	} else if content.Type == ValueTypeList {
-		list := content.GetValue().(*List)
-		listLen := list.Len().GetValue().(int)
-		data = append(data, []byte("[\n")...)
-		for i := 0; i < listLen; i++ {
-			data = append(data, serialize(list.GetByIndex(i))...)
-		}
-		data = append(data, ']')
-	} else if content.Type == ValueTypeMap {
-		m := content.GetValue().(*Map)
-		keys := m.GetKeys()
-		keysLen := keys.Len().GetValue().(int)
-		data = append(data, []byte("{\n")...)
-		for i := 0; i < keysLen; i++ {
-			key := keys.GetByIndex(i).Val
-			data = append(data, []byte(key)...)
-			data = append(data, '\n')
-			data = append(data, serialize(m.Get(key))...)
-		}
-		data = append(data, '}')
-	}
-	data = append(data, '\n')
-	return []byte(data)
-}
-
-func deserialize(lines []string) *Value {
-	if len(lines) == 0 {
-		return NewValue(nil)
-	} else if len(lines) == 1 {
-		tempEnv := &Env{}
-		line := strings.Replace(lines[0], "\\n", "\n", -1)
-		return tempEnv.Express(line)
-	} else {
-		if lines[0] == "[" {
-			list := &List{}
-			for i := 1; i < len(lines); i++ {
-				if lines[i] == "]" {
-					break
-				} else if lines[i] == "[" {
-					start := i
-					i++
-					count := 1
-					for i < len(lines) {
-						if lines[i] == "[" {
-							count++
-						} else if lines[i] == "]" {
-							count--
-						}
-						if count == 0 {
-							list.Push(deserialize(lines[start : i+1]))
-							break
-						}
-						i++
-					}
-				} else if lines[i] == "{" {
-					start := i
-					i++
-					count := 1
-					for i < len(lines) {
-						if lines[i] == "{" {
-							count++
-						} else if lines[i] == "}" {
-							count--
-						}
-						if count == 0 {
-							list.Push(deserialize(lines[start : i+1]))
-							break
-						}
-						i++
-					}
-				} else {
-					list.Push(deserialize(lines[i : i+1]))
-				}
-			}
-			return NewValue(list)
-		} else if lines[0] == "{" {
-			m := &Map{}
-			for i := 1; i < len(lines); i++ {
-				if lines[i] == "}" {
-					break
-				}
-				key := lines[i]
-				var val *Value
-				i++
-				if lines[i] == "}" {
-					break
-				} else if lines[i] == "{" {
-					start := i
-					i++
-					count := 1
-					for i < len(lines) {
-						if lines[i] == "{" {
-							count++
-						} else if lines[i] == "}" {
-							count--
-						}
-						if count == 0 {
-							val = deserialize(lines[start : i+1])
-							break
-						}
-						i++
-					}
-				} else if lines[i] == "[" {
-					start := i
-					i++
-					count := 1
-					for i < len(lines) {
-						if lines[i] == "[" {
-							count++
-						} else if lines[i] == "]" {
-							count--
-						}
-						if count == 0 {
-							val = deserialize(lines[start : i+1])
-							break
-						}
-						i++
-					}
-				} else {
-					val = deserialize(lines[i : i+1])
-				}
-				m.Put(key, val)
-			}
-			return NewValue(m)
-		}
-	}
-	return NewValue(nil)
 }
 
 func evaluateFuncCall(program [][]string, env *Env, funcName string, args []string) {

@@ -2,6 +2,9 @@ package runtime
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"reflect"
 	"strconv"
@@ -373,6 +376,21 @@ func Parse(program [][]string, tty *tty.TTY) *Env {
 		},
 		loops: make(map[string]*loopDetail),
 		Extended: map[string]func(*Env, []*Value){
+			"net": func(env *Env, args []*Value) {
+				paramMap := args[0].GetValue().(*Map)
+				method := paramMap.Get("method").GetValue().(string)
+				if method == "GET" {
+					resp, err := http.Get(paramMap.Get("url").GetValue().(string))
+					if err != nil {
+						log.Fatalln(err)
+					}
+					body, err := ioutil.ReadAll(resp.Body)
+					if err != nil {
+						log.Fatalln(err)
+					}
+					env.Vars[args[1].GetValue().(string)] = Deserialize(string(body))
+				}
+			},
 			"con": func(env *Env, args []*Value) {
 				output := termenv.NewOutput(os.Stdout)
 				t := args[0].GetValue().(string)

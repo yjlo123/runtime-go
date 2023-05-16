@@ -1,6 +1,4 @@
-test_init
-
-let file_name './data.txt'
+let file_name './data.json'
 
 /let data '123'
 
@@ -25,10 +23,3 @@ sav $file_name $data
 
 lod $file_name buf
 prt $buf
-
-
-/ result
-prt '[pass] ' ''
-prt $test_pass
-prt '[fail] ' ''
-prt $test_fail
