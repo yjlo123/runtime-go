@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/mattn/go-tty"
@@ -44,7 +45,11 @@ func main() {
 	}()
 
 	w, h, _ := tty.Size()
+
+	// For Moon OS
 	env.Vars["term_w"] = rts.NewValue(w)
 	env.Vars["term_h"] = rts.NewValue(h)
+	env.Vars["os_host"] = rts.NewValue(runtime.GOOS + " (golang)")
+
 	rts.Evaluate(program, env)
 }
