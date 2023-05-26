@@ -35,7 +35,7 @@ func Tokenize(src string) [][]string {
 				tokens = append(tokens, line)
 				line = []string{}
 			}
-		} else if c == '\'' || c == '"' {
+		} else if c == '\'' {
 			// string
 			quote := c
 			token += string(src[i])
@@ -48,8 +48,14 @@ func Tokenize(src string) [][]string {
 					i++
 					if src[i] == 'n' {
 						token += string('\n')
+					} else if src[i] == 'b' {
+						token += string('\b')
+					} else if src[i] == 't' {
+						token += string('\t')
+					} else if src[i] == '\'' {
+						token += string('\'')
 					} else {
-						token += string(src[i])
+						token += src[i-1 : i+1]
 					}
 					i++
 					continue

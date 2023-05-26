@@ -162,9 +162,9 @@ func Evaluate(program [][]string, env *Env) *Env {
 					} else if val1.Type == ValueTypeInt && val2.Type == ValueTypeStr {
 						// int + str => str
 						res = NewValue(strconv.Itoa(val1.GetValue().(int)) + val2.GetValue().(string))
-					} else if val1.Type == ValueTypeNil && val2.Type == ValueTypeStr {
+					} else if val1.Type == ValueTypeNil && val2.Type == ValueTypeInt {
 						// nil + int => str
-						res = NewValue(string(val1.GetValue().(int)))
+						res = NewValue(string(val2.GetValue().(int)))
 					} else {
 						panic(fmt.Sprintf("add unsupported data type: %s, %s\n", val1.Type, val2.Type))
 					}
@@ -174,7 +174,7 @@ func Evaluate(program [][]string, env *Env) *Env {
 						res = NewValue(val1.GetValue().(int) - val2.GetValue().(int))
 					} else if val1.Type == ValueTypeStr && val2.Type == ValueTypeNil {
 						// str - nil => int
-						res = NewValue(int(val2.GetValue().(string)[0]))
+						res = NewValue(int(val1.GetValue().(string)[0]))
 					} else {
 						panic(fmt.Sprintf("sub unsupported data type: %s, %s\n", val1.Type, val2.Type))
 					}
@@ -430,7 +430,8 @@ func Evaluate(program [][]string, env *Env) *Env {
 				}
 			} else if cmd == "prs" {
 				jsonStr := env.Express((ts[2]))
-				env.AssignVar(ts[1], Deserialize(jsonStr.GetValue().(string)))
+				data := Deserialize(jsonStr.GetValue().(string))
+				env.AssignVar(ts[1], data)
 			} else if cmd == "lod" {
 				fileName := env.Express(ts[1]).GetValue().(string)
 				fileData, err := ioutil.ReadFile(fileName)

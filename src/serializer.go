@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -75,7 +76,10 @@ func Deserialize(str string) *Value {
 
 	if str[0] == '{' {
 		var result map[string]interface{}
-		json.Unmarshal([]byte(str), &result)
+		err := json.Unmarshal([]byte(str), &result)
+		if err != nil {
+			fmt.Println("[Deserialization Error] ", err)
+		}
 		m := &Map{}
 		for k, v := range result {
 			m.Put(k, parseJSONRec(v))
