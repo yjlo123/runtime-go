@@ -43,10 +43,8 @@ func (env *Env) Express(expr string) *Value {
 	}
 	if expr[0] == '$' {
 		// reference
-		if expr == "$key_press" {
-			keyList := NewValue(&List{})
-			keyList.ListPtr.Push(NewValue(env.InKey(env)))
-			return keyList
+		if expr == "$key_pressed" {
+			return NewValue(env.InKey(env))
 		}
 		if expr[1:] == "nil" {
 			return NewValue(nil)

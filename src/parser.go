@@ -130,36 +130,17 @@ func Parse(program [][]string, tty *tty.TTY) *Env {
 		Vars:   make(map[string]*Value),
 		stack:  []*Frame{},
 		Out: func(content interface{}, ending string) {
+			var contentStr string
 			if reflect.ValueOf(content).Kind() == reflect.String {
-				cont := content.(string)
-				if len(cont) > 3 && cont[:4] == "\\033" {
-					return
-				}
-				if cont == "\\x1b[A" {
-					//gt.CursorUp(1)
-					ac.Up(1)
-					return
-				} else if cont == "\\x1b[B" {
-					//gt.CursorDown(1)
-					ac.Down(1)
-					return
-				} else if cont == "\\x1b[C" {
-					//gt.CursorRight(1)
-					ac.Right(1)
-					return
-				} else if cont == "\\x1b[D" {
-					//gt.CursorLeft(1)
-					ac.Left(1)
-					return
-				}
-
-				//content = strings.Replace(content.(string), "\\033", "\x0cOn", -1)
-			}
-
-			if ending == "\n" {
-				fmt.Println(content)
+				contentStr, _ = strconv.Unquote("\"" + content.(string) + "\"")
 			} else {
-				fmt.Print(content)
+				contentStr = fmt.Sprint(content)
+			}
+			if ending == "\n" {
+				fmt.Println(contentStr)
+			} else {
+				fmt.Print(contentStr)
+				//fmt.Print(content)
 				fmt.Print(ending)
 			}
 		},
