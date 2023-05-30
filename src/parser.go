@@ -430,17 +430,23 @@ func Parse(program [][]string, tty *tty.TTY) *Env {
 					}
 
 					//fmt.Print(s)
-				} else if t == "arrow" {
-					direction := args[1].GetValue().(string)
-					switch direction {
-					case "up":
-						ac.Up(1)
-					case "down":
-						ac.Down(1)
-					case "left":
-						ac.Left(1)
-					case "right":
-						ac.Right(1)
+				} else if t == "cursor" {
+					mode := args[1].GetValue().(string)
+					if mode == "position" {
+						line := args[2].GetValue().(int)
+						column := args[3].GetValue().(int)
+						output.MoveCursor(line, column)
+					} else {
+						switch mode {
+						case "up":
+							ac.Up(1)
+						case "down":
+							ac.Down(1)
+						case "left":
+							ac.Left(1)
+						case "right":
+							ac.Right(1)
+						}
 					}
 				} else if t == "clear" {
 					mode := args[1].GetValue().(string)

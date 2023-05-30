@@ -66,19 +66,33 @@ func (val *Value) GetValue() interface{} {
 
 // Equals ..
 func (val *Value) Equals(val2 *Value) bool {
-	// TODO compare list & map
 	if val.Type == ValueTypeInt && val2.Type == ValueTypeInt {
+		// compare ints
 		return val.GetValue().(int) == val2.GetValue().(int)
+	} else if val.Type == ValueTypeList && val2.Type == ValueTypeList {
+		// compare lists
+		v1 := val.GetValue().(*List)
+		v2 := val2.GetValue().(*List)
+		if v1.Len() != v2.Len() {
+			return false
+		}
+		for i := 0; i < v1.Len().GetValue().(int); i++ {
+			if !v1.GetByIndex(i).Equals(v2.GetByIndex(i)) {
+				return false
+			}
+		}
+		return true
 	}
+	// TODO compare map
 	return val.Type == val2.Type && val.Val == val2.Val
 }
 
 // IsGreaterThan ..
 func (val *Value) IsGreaterThan(val2 *Value) bool {
-	// TODO compare list & map
 	if val.Type == ValueTypeInt && val2.Type == ValueTypeInt {
 		return val.GetValue().(int) > val2.GetValue().(int)
 	}
+	// TODO compare list & map
 	return val.Type == val2.Type && val.Val > val2.Val
 }
 
