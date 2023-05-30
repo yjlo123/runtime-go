@@ -140,7 +140,6 @@ func Parse(program [][]string, tty *tty.TTY) *Env {
 				fmt.Println(contentStr)
 			} else {
 				fmt.Print(contentStr)
-				//fmt.Print(content)
 				fmt.Print(ending)
 			}
 		},
@@ -404,10 +403,11 @@ func Parse(program [][]string, tty *tty.TTY) *Env {
 						//s.Background(output.Color(strconv.Itoa(bgColor.GetValue().(int))))
 						c = color.C256(uint8(bgColor.GetValue().(int)), true)
 					}
+					contentString, _ := strconv.Unquote("\"" + textString + "\"")
 					if s != nil {
-						s.Print(textString)
+						s.Print(contentString)
 					} else {
-						c.Print(textString)
+						c.Print(contentString)
 					}
 
 					//fmt.Print(s)
