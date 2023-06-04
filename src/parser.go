@@ -132,12 +132,13 @@ func Parse(program [][]string, tty *tty.TTY) *Env {
 		Out: func(content interface{}, ending string) {
 			var contentStr string
 			if reflect.ValueOf(content).Kind() == reflect.String {
+				contentRaw := content.(string)
+				// convert " to ` to escape from the unquote step
+				contentRaw = strings.Replace(contentRaw, "\"", "`", -1)
 				// convert unicode to string, e.g. "\u2014" -> "-"
-				contentStr, _ = strconv.Unquote("\"" + content.(string) + "\"")
-				if contentStr == "" {
-					// BUG, TODO, results in "" if there are escaped chars
-					contentStr = fmt.Sprint(content.(string))
-				}
+				contentStr, _ = strconv.Unquote("\"" + contentRaw + "\"")
+				// convert ` back to "
+				contentStr = strings.Replace(contentStr, "`", "\"", -1)
 			} else {
 				// to string
 				contentStr = fmt.Sprint(content)
