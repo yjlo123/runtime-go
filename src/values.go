@@ -73,7 +73,7 @@ func (val *Value) Equals(val2 *Value) bool {
 		// compare lists
 		v1 := val.GetValue().(*List)
 		v2 := val2.GetValue().(*List)
-		if v1.Len() != v2.Len() {
+		if !v1.Len().Equals(v2.Len()) {
 			return false
 		}
 		for i := 0; i < v1.Len().GetValue().(int); i++ {
